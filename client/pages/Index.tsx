@@ -456,6 +456,18 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
             </label>
           </div>
           <div className="text-sm text-muted-foreground">Titik: {points.length} • Jarak: {(totalDistance(points)/1000).toFixed(2)} km</div>
+          <div className="mt-3">
+            <h4 className="text-sm font-medium">Ringkasan perjalanan</h4>
+            <div className="text-sm text-muted-foreground mt-2">
+              Durasi: {points.length ? Math.max(0, Math.floor((points[points.length-1].timestamp - points[0].timestamp)/1000)) : 0} detik
+            </div>
+            <div className="text-sm text-muted-foreground">Berhenti (stop) terdeteksi: {analyzeStops(points).length}</div>
+            <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+              {analyzeStops(points).map((s, i) => (
+                <li key={i}>Stop {i+1}: {(s.duration/1000).toFixed(0)}s • Titik: {s.count} • Lokasi: {s.lat.toFixed(4)}, {s.lng.toFixed(4)}</li>
+              ))}
+            </ul>
+          </div>
         </CardContent>
       </Card>
     </div>
