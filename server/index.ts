@@ -18,6 +18,10 @@ export function createServer() {
   });
 
   app.get("/api/demo", handleDemo);
+  // Points endpoints (live/history)
+  const { handlePoints } = await import("./routes/points");
+  app.post("/api/points", handlePoints);
+  app.get("/api/points", handlePoints);
 
   return app;
 }
