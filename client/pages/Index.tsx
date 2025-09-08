@@ -208,13 +208,10 @@ function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
   );
 }
 
-function ShareSection({ onChanged }: { onChanged: () => void }) {
+function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?: boolean }) {
   const [name, setName] = useState("");
-  const [userId, setUserId] = useState("");
-  const [intervalSec, setIntervalSec] = useState(10);
   const [watching, setWatching] = useState(false);
   const watchRef = useRef<number | null>(null);
-  const lastSentRef = useRef<number>(0);
   const lastPointRef = useRef<PositionPoint | null>(null);
   const [authUser, setAuthUser] = useState<any | null>(null);
 
@@ -224,26 +221,23 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
       setAuthUser(u);
       if (u) {
         setName(u.user_metadata?.full_name || u.email.split("@")[0]);
-        setUserId(u.email);
       } else {
         const existing = getUsers()[0];
         if (existing) {
           setName(existing.name);
-          setUserId(existing.id);
         }
       }
     })();
   }, []);
 
   const ensureUser = useCallback(() => {
-    const id = userId || slugify(name) || randomId();
+    const id = slugify(name) || randomId();
     const color = randomColor(id);
     const u: User = { id, name: name || id, color };
     upsertUser(u);
-    setUserId(id);
     onChanged();
     return u;
-  }, [name, userId, onChanged]);
+  }, [name, onChanged]);
 
   // send point if moved more than 5m from lastPoint
   const shouldSend = useCallback((p: PositionPoint) => {
@@ -253,6 +247,10 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
   }, []);
 
   const handleStart = useCallback(() => {
+    if (isAdmin) {
+      alert("Akun admin tidak dapat membagikan lokasi.");
+      return;
+    }
     if (!("geolocation" in navigator)) {
       alert("Perangkat tidak mendukung Geolocation");
       return;
@@ -260,7 +258,6 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
     const user = ensureUser();
     const key = dateKey();
     const options: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
-    lastSentRef.current = 0;
     const sessionId = randomId();
     const id = navigator.geolocation.watchPosition(
       (pos) => {
@@ -273,13 +270,9 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
         };
         if (!shouldSend(p)) return;
         lastPointRef.current = p;
-        const now = Date.now();
-        if (now - lastSentRef.current >= intervalSec * 1000) {
-          setLivePosition(user.id, p);
-          pushHistoryPoint(user.id, key, p);
-          lastSentRef.current = now;
-          onChanged();
-        }
+        setLivePosition(user.id, p);
+        pushHistoryPoint(user.id, key, p);
+        onChanged();
       },
       (err) => {
         console.error(err);
@@ -289,7 +282,7 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
     );
     watchRef.current = id;
     setWatching(true);
-  }, [ensureUser, intervalSec, onChanged, shouldSend]);
+  }, [ensureUser, onChanged, shouldSend, isAdmin]);
 
   const handleStop = useCallback(() => {
     if (!confirm("Apakah anda yakin akan mengakhiri live location?")) return;
@@ -303,21 +296,13 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5" /> Bagikan Lokasi Saat Ini</CardTitle>
-          <CardDescription>Aktifkan untuk mengirim lokasi berkala dan menyimpan riwayat harian.</CardDescription>
+          <CardDescription>Aktifkan untuk mengirim lokasi saat berpindah ≥5m dan menyimpan riwayat harian.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="text-sm font-medium">Nama</label>
               <Input placeholder="Nama Anda" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-sm font-medium">ID Pengguna</label>
-              <Input placeholder="otomatis" value={userId} onChange={(e) => setUserId(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Interval Update (detik)</label>
-              <Input type="number" min={3} value={intervalSec} onChange={(e) => setIntervalSec(Math.max(3, Number(e.target.value || 0)))} />
             </div>
             <div className="flex items-end gap-3">
               {!watching ? (
@@ -328,7 +313,7 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
             </div>
           </div>
           <div className="mt-4 text-sm text-muted-foreground">
-            Saat aktif, aplikasi akan mengirim lokasi dengan akurasi tinggi dan menyimpannya per hari. Titik hanya dikirim jika berpindah ≥ 5m.
+            Saat aktif, aplikasi akan mengirim lokasi otomatis saat berpindah ≥5m dan menyimpannya per hari.
           </div>
         </CardContent>
       </Card>
