@@ -245,6 +245,7 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
             if (found) {
               setName(found.name || (u.user_metadata?.full_name || u.email.split("@")[0]));
               setKecamatan(found.kecamatan || "");
+              try { upsertUser({ id: found.id, name: found.name, color: found.color || '#06b6d4', kecamatan: found.kecamatan }); } catch {}
               return;
             }
           }
