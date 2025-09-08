@@ -366,17 +366,37 @@ function RecentTodayCard() {
   );
 }
 
-function HistorySection({ tick }: { tick: number }) {
+function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) {
   const users = useMemo(() => getUsers(), [tick]);
   const [userId, setUserId] = useState(users[0]?.id || "");
   const [date, setDate] = useState<Date>(new Date());
   const key = useMemo(() => dateKey(date), [date]);
-  const points = useMemo(() => (userId ? getHistory(userId, key) : []), [userId, key, tick]);
+  const [points, setPoints] = useState<PositionPoint[]>([]);
   const user = users.find((u) => u.id === userId) || null;
 
   useEffect(() => {
     if (!userId && users[0]) setUserId(users[0].id);
   }, [users, userId]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!userId) return setPoints([]);
+      try {
+        const res = await fetch(`/api/points?action=history&userId=${encodeURIComponent(userId)}&date=${encodeURIComponent(key)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (mounted) setPoints(Array.isArray(json) ? json : []);
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
+      // fallback to local
+      setPoints(getHistory(userId, key));
+    })();
+    return () => { mounted = false; };
+  }, [userId, key, tick]);
 
   const onImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
