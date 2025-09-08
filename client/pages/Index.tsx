@@ -331,7 +331,6 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
                   "Cihideung",
                   "Tawang",
                   "Cipedes",
-                  "Indihiang",
                 ].map((k) => (
                   <option key={k} value={k}>{k}</option>
                 ))}
