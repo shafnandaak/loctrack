@@ -381,6 +381,7 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
               </select>
             </div>
             <div className="flex items-end gap-3">
+              <Button onClick={() => { ensureUser(); alert('Profil tersimpan'); }} className="gap-2">Simpan Profil</Button>
               {!watching ? (
                 <Button onClick={handleStart} className="gap-2"><Play className="h-4 w-4" /> Mulai Share</Button>
               ) : (
