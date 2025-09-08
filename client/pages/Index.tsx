@@ -85,7 +85,7 @@ function Hero({ isAdmin }: { isAdmin?: boolean }) {
           Real‑time & Rekap Harian
         </div>
         <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
-          Monitoring Share Lokasi Multi‑User {"\u00A0"}
+          Monitoring Share Lokasi Multi��User {"\u00A0"}
         </h1>
         <p className="mt-3 text-muted-foreground max-w-2xl">
           Kelola tim yang membagikan lokasi dan pantau pergerakan mereka secara langsung.
@@ -401,6 +401,17 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
     const data = new Blob([JSON.stringify({ [key]: points }, null, 2)], { type: "application/json" });
     return URL.createObjectURL(data);
   }, [points, user, key]);
+
+  const pointDurations = useMemo(() => {
+    const res: { point: PositionPoint; durationSec: number }[] = [];
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      const next = points[i + 1];
+      const dur = next ? Math.max(0, Math.floor((next.timestamp - p.timestamp) / 1000)) : 0;
+      res.push({ point: p, durationSec: dur });
+    }
+    return res;
+  }, [points]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
