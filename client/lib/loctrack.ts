@@ -12,7 +12,50 @@ export type User = {
   id: string;
   name: string;
   color: string; // hex
+  kecamatan?: string | null;
 };
+
+export type StopSegment = {
+  start: number;
+  end: number;
+  duration: number;
+  lat: number;
+  lng: number;
+  count: number;
+};
+
+/**
+ * Analyze stop segments where consecutive points are within stopRadius meters.
+ * Returns segments with duration >= minStopDuration (ms)
+ */
+export function analyzeStops(points: PositionPoint[], stopRadius = 10, minStopDuration = 60_000): StopSegment[] {
+  if (!points || points.length === 0) return [];
+  const segments: StopSegment[] = [];
+  let i = 0;
+  while (i < points.length) {
+    let j = i + 1;
+    const base = points[i];
+    const cluster = [base];
+    while (j < points.length) {
+      const p = points[j];
+      const d = distanceMeters(cluster[cluster.length - 1], p);
+      if (d <= stopRadius) {
+        cluster.push(p);
+        j++;
+      } else break;
+    }
+    const start = cluster[0].timestamp;
+    const end = cluster[cluster.length - 1].timestamp;
+    const duration = end - start;
+    if (duration >= minStopDuration) {
+      const lat = cluster.reduce((s, x) => s + x.lat, 0) / cluster.length;
+      const lng = cluster.reduce((s, x) => s + x.lng, 0) / cluster.length;
+      segments.push({ start, end, duration, lat, lng, count: cluster.length });
+    }
+    i = j;
+  }
+  return segments;
+}
 
 const LS_USERS = "loctrack:users";
 const LS_LIVE = "loctrack:live"; // Record<userId, PositionPoint>
