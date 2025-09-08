@@ -458,14 +458,6 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
     return () => { mounted = false; };
   }, [userId, key, tick]);
 
-  const onImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    importUserHistory(text);
-    alert("Import berhasil");
-  }, []);
-
   const jsonBlob = useMemo(() => {
     if (!user) return null;
     const data = new Blob([JSON.stringify({ [key]: points }, null, 2)], { type: "application/json" });
