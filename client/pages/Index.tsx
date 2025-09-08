@@ -494,7 +494,7 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
           <CardDescription>Pilih pengguna dan tanggal untuk melihat riwayat.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="flex gap-4 flex-wrap">
             <div>
               <label className="text-sm font-medium">Pengguna</label>
               <select className="mt-1 w-full rounded-md border bg-background px-3 py-2" value={userId} onChange={(e) => setUserId(e.target.value)}>
