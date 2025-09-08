@@ -330,7 +330,12 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
     if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current);
     watchRef.current = null;
     setWatching(false);
-  }, []);
+    // mark end of share session
+    const today = dateKey();
+    const id = slugify(name) || randomId();
+    const sharedKey = `loctrack:shared:${id}:${today}`;
+    try { localStorage.removeItem(sharedKey); } catch {}
+  }, [name]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
