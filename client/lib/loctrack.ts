@@ -206,7 +206,6 @@ export function totalDistance(list: PositionPoint[]) {
   return dist;
 }
 
-export { analyzeStops };
 
 export const defaultUserColors = [
   "#10b981", // emerald
