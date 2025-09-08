@@ -23,6 +23,7 @@ import {
   totalDistance,
   upsertUser,
   distanceMeters,
+  analyzeStops,
 } from "@/lib/loctrack";
 import { format } from "date-fns";
 import { getCurrentUser } from "@/lib/supabase";
