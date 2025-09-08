@@ -100,7 +100,7 @@ function Hero({ isAdmin }: { isAdmin?: boolean }) {
   );
 }
 
-function MonitorSection({ tick }: { tick: number }) {
+function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) {
   const users = useMemo(() => getUsers(), [tick]);
   const live = useMemo(() => getAllLivePositions(), [tick]);
   const [kecFilter, setKecFilter] = useState<string | null>(null);
