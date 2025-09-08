@@ -90,6 +90,56 @@ function Hero() {
 function MonitorSection({ tick }: { tick: number }) {
   const users = useMemo(() => getUsers(), [tick]);
   const live = useMemo(() => getAllLivePositions(), [tick]);
+  const [kecFilter, setKecFilter] = useState<string | null>(null);
+  const [kecOptions, setKecOptions] = useState<string[]>([]);
+
+  // reverse geocode cache in sessionStorage
+  function cacheKey(lat: number, lng: number) {
+    return `rev:${lat.toFixed(4)},${lng.toFixed(4)}`;
+  }
+
+  async function getKecamatan(lat: number, lng: number) {
+    const key = cacheKey(lat, lng);
+    const cached = sessionStorage.getItem(key);
+    if (cached) return cached;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      const addr = json.address || {};
+      const kec = addr.suburb || addr.village || addr.county || addr.city_district || addr.town || null;
+      if (kec) sessionStorage.setItem(key, kec);
+      return kec;
+    } catch {
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const set = new Set<string>();
+      for (const u of users) {
+        const lp = live[u.id];
+        if (!lp) continue;
+        const k = await getKecamatan(lp.lat, lp.lng);
+        if (k) set.add(k);
+      }
+      if (mounted) setKecOptions(Array.from(set).slice(0, 30));
+    })();
+    return () => { mounted = false; };
+  }, [users, live]);
+
+  const filteredUsers = useMemo(() => {
+    if (!kecFilter) return users;
+    return users.filter((u) => {
+      const lp = live[u.id];
+      if (!lp) return false;
+      const key = cacheKey(lp.lat, lp.lng);
+      const k = sessionStorage.getItem(key);
+      return k === kecFilter;
+    });
+  }, [users, live, kecFilter]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -110,9 +160,16 @@ function MonitorSection({ tick }: { tick: number }) {
           <CardDescription>Pengguna yang pernah aktif berbagi lokasi.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-3">
+            <label className="text-sm font-medium">Filter Kecamatan (Admin)</label>
+            <select className="mt-1 w-full rounded-md border bg-background px-3 py-2" value={kecFilter ?? ""} onChange={(e) => setKecFilter(e.target.value || null)}>
+              <option value="">Tampilkan semua</option>
+              {kecOptions.map((k) => (<option key={k} value={k}>{k}</option>))}
+            </select>
+          </div>
           <ul className="space-y-3">
-            {users.length === 0 && <li className="text-sm text-muted-foreground">Belum ada pengguna.</li>}
-            {users.map((u) => {
+            {filteredUsers.length === 0 && <li className="text-sm text-muted-foreground">Belum ada pengguna.</li>}
+            {filteredUsers.map((u) => {
               const lp = live[u.id];
               return (
                 <li key={u.id} className="flex items-center justify-between rounded-md border p-3">
