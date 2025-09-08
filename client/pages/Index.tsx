@@ -53,7 +53,7 @@ export default function Index() {
         </Tabs>
       </main>
       <footer className="mt-12 border-t">
-        <div className="container py-6 text-sm text-muted-foreground">© {new Date().getFullYear()} LocTrack — Sistem monitoring share lokasi dengan riwayat harian.</div>
+        <div className="container py-6 text-sm text-muted-foreground">© {new Date().getFullYear()} LocTrack �� Sistem monitoring share lokasi dengan riwayat harian.</div>
       </footer>
     </div>
   );
@@ -142,13 +142,24 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
   const [watching, setWatching] = useState(false);
   const watchRef = useRef<number | null>(null);
   const lastSentRef = useRef<number>(0);
+  const lastPointRef = useRef<PositionPoint | null>(null);
+  const [authUser, setAuthUser] = useState<any | null>(null);
 
   useEffect(() => {
-    const existing = getUsers()[0];
-    if (existing) {
-      setName(existing.name);
-      setUserId(existing.id);
-    }
+    (async () => {
+      const u = await getCurrentUser().catch(() => null);
+      setAuthUser(u);
+      if (u) {
+        setName(u.user_metadata?.full_name || u.email.split("@")[0]);
+        setUserId(u.email);
+      } else {
+        const existing = getUsers()[0];
+        if (existing) {
+          setName(existing.name);
+          setUserId(existing.id);
+        }
+      }
+    })();
   }, []);
 
   const ensureUser = useCallback(() => {
@@ -161,6 +172,13 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
     return u;
   }, [name, userId, onChanged]);
 
+  // send point if moved more than 5m from lastPoint
+  const shouldSend = useCallback((p: PositionPoint) => {
+    const last = lastPointRef.current;
+    if (!last) return true;
+    return distanceMeters(last, p) >= 5;
+  }, []);
+
   const handleStart = useCallback(() => {
     if (!("geolocation" in navigator)) {
       alert("Perangkat tidak mendukung Geolocation");
@@ -170,6 +188,7 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
     const key = dateKey();
     const options: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
     lastSentRef.current = 0;
+    const sessionId = randomId();
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         const p: PositionPoint = {
@@ -177,7 +196,10 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
           timestamp: Date.now(),
+          sessionId,
         };
+        if (!shouldSend(p)) return;
+        lastPointRef.current = p;
         const now = Date.now();
         if (now - lastSentRef.current >= intervalSec * 1000) {
           setLivePosition(user.id, p);
@@ -194,9 +216,10 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
     );
     watchRef.current = id;
     setWatching(true);
-  }, [ensureUser, intervalSec, onChanged]);
+  }, [ensureUser, intervalSec, onChanged, shouldSend]);
 
   const handleStop = useCallback(() => {
+    if (!confirm("Apakah anda yakin akan mengakhiri live location?")) return;
     if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current);
     watchRef.current = null;
     setWatching(false);
@@ -232,7 +255,7 @@ function ShareSection({ onChanged }: { onChanged: () => void }) {
             </div>
           </div>
           <div className="mt-4 text-sm text-muted-foreground">
-            Saat aktif, aplikasi akan mengirim lokasi dengan akurasi tinggi dan menyimpannya per hari.
+            Saat aktif, aplikasi akan mengirim lokasi dengan akurasi tinggi dan menyimpannya per hari. Titik hanya dikirim jika berpindah ≥ 5m.
           </div>
         </CardContent>
       </Card>
