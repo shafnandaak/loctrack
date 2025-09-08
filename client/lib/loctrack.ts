@@ -5,6 +5,7 @@ export type PositionPoint = {
   lng: number;
   timestamp: number; // ms epoch
   accuracy?: number | null;
+  sessionId?: string | null;
 };
 
 export type User = {
