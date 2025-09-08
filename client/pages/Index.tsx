@@ -116,7 +116,6 @@ function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
     "Cihideung",
     "Tawang",
     "Cipedes",
-    "Indihiang",
   ];
 
   const [searchTerm, setSearchTerm] = useState("");
