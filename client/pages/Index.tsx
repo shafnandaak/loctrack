@@ -163,7 +163,7 @@ function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
         </CardHeader>
         <CardContent>
           <div className="h-[420px] rounded-lg overflow-hidden">
-            <LiveMap />
+            <LiveMap isAdmin={isAdmin} />
           </div>
         </CardContent>
       </Card>
