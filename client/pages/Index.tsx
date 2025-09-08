@@ -210,6 +210,7 @@ function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
 
 function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?: boolean }) {
   const [name, setName] = useState("");
+  const [kecamatan, setKecamatan] = useState("");
   const [watching, setWatching] = useState(false);
   const watchRef = useRef<number | null>(null);
   const lastPointRef = useRef<PositionPoint | null>(null);
@@ -221,10 +222,13 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
       setAuthUser(u);
       if (u) {
         setName(u.user_metadata?.full_name || u.email.split("@")[0]);
+        // try to infer kecamatan from metadata if present
+        setKecamatan(u.user_metadata?.kecamatan || "");
       } else {
         const existing = getUsers()[0];
         if (existing) {
           setName(existing.name);
+          setKecamatan((existing as any).kecamatan || "");
         }
       }
     })();
@@ -233,11 +237,11 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
   const ensureUser = useCallback(() => {
     const id = slugify(name) || randomId();
     const color = randomColor(id);
-    const u: User = { id, name: name || id, color };
+    const u: User = { id, name: name || id, color, kecamatan: kecamatan || undefined };
     upsertUser(u);
     onChanged();
     return u;
-  }, [name, onChanged]);
+  }, [name, kecamatan, onChanged]);
 
   // send point if moved more than 5m from lastPoint
   const shouldSend = useCallback((p: PositionPoint) => {
