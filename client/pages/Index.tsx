@@ -152,12 +152,38 @@ function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
     <div className="grid gap-6 lg:grid-cols-3">
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Peta Live Semua Pengguna</CardTitle>
-          <CardDescription>Marker bergerak secara otomatis ketika ada pembaruan lokasi.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Ringkasan Live Pengguna</CardTitle>
+          <CardDescription>Daftar singkat pengguna yang sedang aktif berbagi lokasi (tanpa peta dekoratif).</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[420px] rounded-lg overflow-hidden">
-            <LiveMap isAdmin={isAdmin} />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Pengguna aktif</div>
+              <div className="text-sm font-medium">{Object.keys(live).length} sedang online</div>
+            </div>
+            <ul className="space-y-2">
+              {Object.values(live).length === 0 && <li className="text-sm text-muted-foreground">Belum ada lokasi live.</li>}
+              {filteredUsers.map((u) => {
+                const lp = live[u.id];
+                return (
+                  <li key={u.id} className="flex items-center justify-between rounded-md border p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: u.color }} />
+                      <div>
+                        <div className="font-medium">{u.name}</div>
+                        <div className="text-xs text-muted-foreground">{lp ? new Date(lp.timestamp).toLocaleTimeString() : "offline"}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {lp && (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">{lp.lat.toFixed(4)}, {lp.lng.toFixed(4)}</span>
+                      )}
+                      <button onClick={() => exportUserCsv(u.id)} className="rounded-md border px-2 py-1 text-xs">Export CSV</button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </CardContent>
       </Card>
