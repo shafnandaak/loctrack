@@ -13,9 +13,25 @@ L.Marker.prototype.options.icon = DefaultIcon;
 type Props = {
   points: PositionPoint[];
   color?: string;
+  selectedIndex?: number | null;
 };
 
-export function HistoryMap({ points, color = "#22c55e" }: Props) {
+function MapEffects({ points, selectedIndex }: { points: PositionPoint[]; selectedIndex?: number | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!points || points.length === 0) return;
+    if (selectedIndex != null && points[selectedIndex]) {
+      const p = points[selectedIndex];
+      map.setView([p.lat, p.lng], Math.max(map.getZoom(), 14));
+    } else {
+      const p = points[0];
+      map.setView([p.lat, p.lng], Math.max(map.getZoom(), 13));
+    }
+  }, [map, points, selectedIndex]);
+  return null;
+}
+
+export function HistoryMap({ points, color = "#22c55e", selectedIndex }: Props) {
   const center = points.length ? [points[0].lat, points[0].lng] as [number, number] : ([-6.2, 106.816666] as [number, number]);
   const poly = points.map((p) => [p.lat, p.lng]) as [number, number][];
   const dist = totalDistance(points);
@@ -26,23 +42,21 @@ export function HistoryMap({ points, color = "#22c55e" }: Props) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <MapEffects points={points} selectedIndex={selectedIndex} />
       {poly.length >= 2 && (
         <Polyline positions={poly} pathOptions={{ color, weight: 4 }} />
       )}
+
+      {points.map((pt, i) => (
+        <Marker key={i} position={[pt.lat, pt.lng]}>
+          <Popup>
+            {new Date(pt.timestamp).toLocaleTimeString()}<br />Durasi: {/* duration handled externally */}
+          </Popup>
+        </Marker>
+      ))}
+
       {points[0] && (
-        <Marker position={[points[0].lat, points[0].lng]}>
-          <Popup>
-            Start: {new Date(points[0].timestamp).toLocaleTimeString()}
-          </Popup>
-        </Marker>
-      )}
-      {points[points.length - 1] && (
-        <Marker position={[points[points.length - 1].lat, points[points.length - 1].lng]}>
-          <Popup>
-            Selesai: {new Date(points[points.length - 1].timestamp).toLocaleTimeString()}<br />
-            Jarak: {(dist / 1000).toFixed(2)} km
-          </Popup>
-        </Marker>
+        <Marker position={[points[0].lat, points[0].lng]} />
       )}
     </MapContainer>
   );
