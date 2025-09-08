@@ -75,7 +75,7 @@ export default function Index() {
   );
 }
 
-function Hero() {
+function Hero({ isAdmin }: { isAdmin?: boolean }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div>
@@ -93,7 +93,7 @@ function Hero() {
       </div>
       <div className="rounded-xl border bg-white/70 p-3 shadow-sm">
         <div className="aspect-[16/9] rounded-lg overflow-hidden">
-          <LiveMap />
+          <LiveMap isAdmin={isAdmin} />
         </div>
       </div>
     </div>
