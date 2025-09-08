@@ -308,6 +308,10 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
               <label className="text-sm font-medium">Nama</label>
               <Input placeholder="Nama Anda" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
+            <div>
+              <label className="text-sm font-medium">Kecamatan</label>
+              <Input placeholder="Kecamatan" value={kecamatan} onChange={(e) => setKecamatan(e.target.value)} />
+            </div>
             <div className="flex items-end gap-3">
               {!watching ? (
                 <Button onClick={handleStart} className="gap-2"><Play className="h-4 w-4" /> Mulai Share</Button>
