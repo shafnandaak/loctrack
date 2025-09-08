@@ -231,6 +231,8 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
     }
     if (!confirm("Apakah anda yakin akan memulai live location?")) return;
     const user = ensureUser();
+    // persist kecamatan on user record
+    upsertUser({ id: user.id, name: user.name, color: user.color, kecamatan: kecamatan || undefined });
     const key = dateKey();
     const options: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
     const sessionId = randomId();
