@@ -229,6 +229,7 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
       alert("Perangkat tidak mendukung Geolocation");
       return;
     }
+    if (!confirm("Apakah anda yakin akan memulai live location?")) return;
     const user = ensureUser();
     const key = dateKey();
     const options: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
