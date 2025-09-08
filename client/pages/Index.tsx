@@ -119,10 +119,34 @@ function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
     "Indihiang",
   ];
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "lastSeen">("name");
+
   const filteredUsers = useMemo(() => {
-    if (!kecFilter) return users;
-    return users.filter((u) => (u.kecamatan || "") === kecFilter);
-  }, [users, kecFilter]);
+    let arr = users.filter((u) => (kecFilter ? (u.kecamatan || "") === kecFilter : true));
+    if (searchTerm) arr = arr.filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (sortBy === "name") arr.sort((a, b) => a.name.localeCompare(b.name));
+    else arr.sort((a, b) => {
+      const ta = (live[a.id]?.timestamp) || 0;
+      const tb = (live[b.id]?.timestamp) || 0;
+      return tb - ta;
+    });
+    return arr;
+  }, [users, kecFilter, searchTerm, sortBy, live]);
+
+  function exportUserCsv(userId: string) {
+    const day = dateKey();
+    const pts = getHistory(userId, day);
+    if (!pts.length) { alert("Tidak ada data untuk hari ini"); return; }
+    const rows = ["timestamp,lat,lng,accuracy,sessionId"].concat(pts.map(p => `${new Date(p.timestamp).toISOString()},${p.lat},${p.lng},${p.accuracy ?? ""},${p.sessionId ?? ""}`));
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `history-${userId}-${day}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
