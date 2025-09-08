@@ -167,12 +167,21 @@ function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
           <CardDescription>Pengguna yang pernah aktif berbagi lokasi.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-3">
-            <label className="text-sm font-medium">Filter Kecamatan (Admin)</label>
-            <select className="mt-1 w-full rounded-md border bg-background px-3 py-2" value={kecFilter ?? ""} onChange={(e) => setKecFilter(e.target.value || null)}>
-              <option value="">Tampilkan semua</option>
-              {kecOptions.map((k) => (<option key={k} value={k}>{k}</option>))}
-            </select>
+          <div className="mb-3 grid grid-cols-1 gap-2">
+            <div>
+              <label className="text-sm font-medium">Filter Kecamatan (Admin)</label>
+              <select className="mt-1 w-full rounded-md border bg-background px-3 py-2" value={kecFilter ?? ""} onChange={(e) => setKecFilter(e.target.value || null)}>
+                <option value="">Tampilkan semua</option>
+                {kecamatanOptions.map((k) => (<option key={k} value={k}>{k}</option>))}
+              </select>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <input className="flex-1 rounded-md border px-2 py-1" placeholder="Cari nama..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <select className="rounded-md border px-2 py-1" value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+                <option value="name">Urut: Nama</option>
+                <option value="lastSeen">Urut: Terbaru</option>
+              </select>
+            </div>
           </div>
           <ul className="space-y-3">
             {filteredUsers.length === 0 && <li className="text-sm text-muted-foreground">Belum ada pengguna.</li>}
@@ -187,11 +196,14 @@ function MonitorSection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
                       <div className="text-xs text-muted-foreground">{lp ? new Date(lp.timestamp).toLocaleTimeString() : "offline"}</div>
                     </div>
                   </div>
-                  {lp && (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5" /> {lp.lat.toFixed(4)}, {lp.lng.toFixed(4)}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {lp && (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5" /> {lp.lat.toFixed(4)}, {lp.lng.toFixed(4)}
+                      </span>
+                    )}
+                    <button onClick={() => exportUserCsv(u.id)} className="rounded-md border px-2 py-1 text-xs">Export CSV</button>
+                  </div>
                 </li>
               );
             })}
