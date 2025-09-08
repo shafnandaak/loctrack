@@ -236,6 +236,19 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
       const u = await getCurrentUser().catch(() => null);
       setAuthUser(u);
       if (u) {
+        // try to load persisted profile from server
+        try {
+          const res = await fetch('/api/points?action=users');
+          if (res.ok) {
+            const users = await res.json();
+            const found = users.find((x: any) => x.id === u.id || x.email === u.email);
+            if (found) {
+              setName(found.name || (u.user_metadata?.full_name || u.email.split("@")[0]));
+              setKecamatan(found.kecamatan || "");
+              return;
+            }
+          }
+        } catch {}
         setName(u.user_metadata?.full_name || u.email.split("@")[0]);
         setKecamatan(u.user_metadata?.kecamatan || "");
       } else {
@@ -249,13 +262,19 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
   }, []);
 
   const ensureUser = useCallback(() => {
-    const id = slugify(name) || randomId();
+    const id = (authUser && (authUser.id || authUser.sub || authUser.email)) || slugify(name) || randomId();
     const color = randomColor(id);
     const u: User = { id, name: name || id, color, kecamatan: kecamatan || undefined };
     upsertUser(u);
+    // persist to server if possible
+    (async () => {
+      try {
+        await fetch('/api/points', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'user', user: u }) });
+      } catch {}
+    })();
     onChanged();
     return u;
-  }, [name, kecamatan, onChanged]);
+  }, [name, kecamatan, onChanged, authUser]);
 
   // send point if moved more than 50m from lastPoint
   const shouldSend = useCallback((p: PositionPoint) => {
@@ -273,31 +292,19 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
       alert("Perangkat tidak mendukung Geolocation");
       return;
     }
-    // enforce one naming per day and one share per day
-    const today = dateKey();
-    const tentativeId = slugify(name) || randomId();
-    const namedKey = `loctrack:named:${tentativeId}:${today}`;
-    const sharedKey = `loctrack:shared:${tentativeId}:${today}`;
-    if (!localStorage.getItem(namedKey)) {
-      // first time naming today -> persist
-      localStorage.setItem(namedKey, JSON.stringify({ name, kecamatan }));
-    } else {
-      // if name exists today, ensure it matches
-      const prev = JSON.parse(localStorage.getItem(namedKey) || "null");
-      if (prev && prev.name && prev.name !== name) {
-        return alert("Anda sudah menamai hari ini; tidak boleh mengganti nama lagi hari ini.");
-      }
-    }
+    if (!confirm("Apakah anda yakin akan memulai live location?")) return;
+    const user = ensureUser();
 
+    // enforce one share per day per account
+    const today = dateKey();
+    const sharedKey = `loctrack:shared:${user.id}:${today}`;
     if (localStorage.getItem(sharedKey)) {
       return alert("Anda sudah memulai share hari ini dan hanya diizinkan 1x per hari.");
     }
 
-    if (!confirm("Apakah anda yakin akan memulai live location?")) return;
-    const user = ensureUser();
     // persist kecamatan on user record
     upsertUser({ id: user.id, name: user.name, color: user.color, kecamatan: kecamatan || undefined });
-    localStorage.setItem(sharedKey, JSON.stringify({ startedAt: Date.now() }));
+    try { localStorage.setItem(sharedKey, JSON.stringify({ startedAt: Date.now() })); } catch {}
 
     const key = dateKey();
     const options: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
