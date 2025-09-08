@@ -468,6 +468,20 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
               ))}
             </ul>
           </div>
+          <div className="mt-3">
+            <h4 className="text-sm font-medium">Timestamps & Durasi per titik</h4>
+            <div className="mt-2 max-h-48 overflow-auto border rounded p-2 bg-background">
+              <ul className="text-sm">
+                {pointDurations.length === 0 && <li className="text-muted-foreground">Tidak ada titik</li>}
+                {pointDurations.map((pd, idx) => (
+                  <li key={idx} className="flex justify-between py-1 border-b last:border-b-0">
+                    <div>{new Date(pd.point.timestamp).toLocaleTimeString()}</div>
+                    <div className="text-muted-foreground">{pd.durationSec}s</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
