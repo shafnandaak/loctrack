@@ -58,13 +58,13 @@ export default function Index() {
             <TabsTrigger value="history" id="history">History</TabsTrigger>
           </TabsList>
           <TabsContent value="monitor" className="mt-6">
-            <MonitorSection tick={usersTick} />
+            <MonitorSection tick={usersTick} isAdmin={isAdmin} />
           </TabsContent>
           <TabsContent value="share" className="mt-6">
-            <ShareSection onChanged={() => setUsersTick((t) => t + 1)} />
+            <ShareSection onChanged={() => setUsersTick((t) => t + 1)} isAdmin={isAdmin} />
           </TabsContent>
           <TabsContent value="history" className="mt-6">
-            <HistorySection tick={usersTick} />
+            <HistorySection tick={usersTick} isAdmin={isAdmin} />
           </TabsContent>
         </Tabs>
       </main>
