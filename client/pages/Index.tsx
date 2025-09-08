@@ -505,7 +505,42 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
             <div>
               <label className="text-sm font-medium">Tanggal</label>
               <div className="mt-2 rounded-md border p-2">
-                <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
+                <div className="flex gap-2">
+                  <select className="rounded-md border px-2 py-1" value={date.getDate()} onChange={(e) => {
+                    const day = Number(e.target.value);
+                    const nd = new Date(date);
+                    nd.setDate(day);
+                    setDate(nd);
+                  }}>
+                    {Array.from({ length: 31 }).map((_, i) => {
+                      const d = i + 1;
+                      return <option key={d} value={d}>{d}</option>;
+                    })}
+                  </select>
+                  <select className="rounded-md border px-2 py-1" value={date.getMonth()} onChange={(e) => {
+                    const m = Number(e.target.value);
+                    const nd = new Date(date);
+                    nd.setMonth(m);
+                    setDate(nd);
+                  }}>
+                    {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((mn, idx) => (
+                      <option key={mn} value={idx}>{mn}</option>
+                    ))}
+                  </select>
+                  <select className="rounded-md border px-2 py-1" value={date.getFullYear()} onChange={(e) => {
+                    const y = Number(e.target.value);
+                    const nd = new Date(date);
+                    nd.setFullYear(y);
+                    setDate(nd);
+                  }}>
+                    {(() => {
+                      const cur = new Date().getFullYear();
+                      const years = [] as number[];
+                      for (let y = cur - 2; y <= cur + 1; y++) years.push(y);
+                      return years.map((y) => <option key={y} value={y}>{y}</option>);
+                    })()}
+                  </select>
+                </div>
               </div>
             </div>
             <div className="flex flex-col justify-between">
@@ -515,10 +550,6 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
                 </a>
                 <button onClick={() => { if (user) exportUserCsv(user.id); }} className="rounded-md border px-3 py-1">Export CSV</button>
               </div>
-              <label className="text-sm text-muted-foreground">
-                <span className="sr-only">Import</span>
-                <input type="file" accept="application/json" onChange={onImport} className="block mt-2" />
-              </label>
             </div>
           </div>
         </CardContent>
