@@ -12,5 +12,26 @@
     "accuracy": 68857.18928660644,
     "timestamp": 1757313098498,
     "sessionId": "z8oum1qu"
+  },
+  {
+    "lat": -7.3022302,
+    "lng": 108.1982447,
+    "accuracy": 20,
+    "timestamp": 1757314478689,
+    "sessionId": "zsc2nayp"
+  },
+  {
+    "lat": -7.3022914,
+    "lng": 108.1982296,
+    "accuracy": 14.06,
+    "timestamp": 1757314608745,
+    "sessionId": "zsc2nayp"
+  },
+  {
+    "lat": -6.9238784,
+    "lng": 107.6133888,
+    "accuracy": 56114.84136742513,
+    "timestamp": 1757314739028,
+    "sessionId": "zsc2nayp"
   }
 ]
