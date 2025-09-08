@@ -85,7 +85,7 @@ function Hero({ isAdmin }: { isAdmin?: boolean }) {
           Real‑time & Rekap Harian
         </div>
         <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
-          Monitoring Share Lokasi Multi��User {"\u00A0"}
+          Monitoring Share Lokasi Multi-User{" "}
         </h1>
         <p className="mt-3 text-muted-foreground max-w-2xl">
           Kelola tim yang membagikan lokasi dan pantau pergerakan mereka secara langsung.
