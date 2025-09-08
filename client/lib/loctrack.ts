@@ -79,7 +79,7 @@ export function getUsers(): User[] {
 export function upsertUser(user: User) {
   const users = getUsers();
   const idx = users.findIndex((u) => u.id === user.id);
-  if (idx >= 0) users[idx] = user; else users.push(user);
+  if (idx >= 0) users[idx] = { ...users[idx], ...user }; else users.push(user);
   localStorage.setItem(LS_USERS, JSON.stringify(users));
 }
 
