@@ -65,6 +65,16 @@ export function setLivePosition(userId: string, pos: PositionPoint) {
   const rec = getAllLivePositions();
   rec[userId] = pos;
   setAllLivePositions(rec);
+  // best-effort send to server
+  (async () => {
+    try {
+      const users = getUsers();
+      const user = users.find((u) => u.id === userId) || { id: userId, name: userId };
+      await fetch("/api/points", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user, point: pos }) });
+    } catch (e) {
+      // ignore
+    }
+  })();
 }
 
 export function getLivePosition(userId: string): PositionPoint | null {
@@ -77,6 +87,16 @@ export function pushHistoryPoint(userId: string, key: string, point: PositionPoi
   if (!list.some((p) => p.timestamp === point.timestamp)) {
     list.push(point);
     localStorage.setItem(historyKey(userId, key), JSON.stringify(list));
+    // best-effort send to server
+    (async () => {
+      try {
+        const users = getUsers();
+        const user = users.find((u) => u.id === userId) || { id: userId, name: userId };
+        await fetch("/api/points", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user, point }) });
+      } catch (e) {
+        // ignore
+      }
+    })();
   }
 }
 
