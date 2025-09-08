@@ -30,6 +30,18 @@ function writeJSON(file: string, data: any) {
 
 export const handlePoints: RequestHandler = (req, res) => {
   ensureDataDir();
+  // support updating user profile separately: POST { type: 'user', user }
+  if (req.method === "POST" && req.body && req.body.type === "user") {
+    const u = req.body.user as any;
+    if (!u || !u.id) return res.status(400).json({ error: "user.id required" });
+    const users = readJSON(USERS_FILE) || [];
+    const idx2 = users.findIndex((x: any) => x.id === u.id);
+    const stored = { id: u.id, name: u.name || u.id, color: u.color || "#06b6d4", kecamatan: u.kecamatan };
+    if (idx2 >= 0) users[idx2] = { ...users[idx2], ...stored }; else users.push(stored);
+    writeJSON(USERS_FILE, users);
+    return res.json({ ok: true });
+  }
+
   if (req.method === "POST") {
     const { user, point } = req.body as any;
     if (!user || !user.id || !point) return res.status(400).json({ error: "user and point required" });
@@ -60,18 +72,6 @@ export const handlePoints: RequestHandler = (req, res) => {
       fs.writeFileSync(histFile, JSON.stringify(arr, null, 2));
     }
 
-    return res.json({ ok: true });
-  }
-
-  // support updating user profile: POST { type: 'user', user }
-  if (req.method === "POST" && req.body && req.body.type === "user") {
-    const u = req.body.user as any;
-    if (!u || !u.id) return res.status(400).json({ error: "user.id required" });
-    const users = readJSON(USERS_FILE) || [];
-    const idx2 = users.findIndex((x: any) => x.id === u.id);
-    const stored = { id: u.id, name: u.name || u.id, color: u.color || "#06b6d4", kecamatan: u.kecamatan };
-    if (idx2 >= 0) users[idx2] = { ...users[idx2], ...stored }; else users.push(stored);
-    writeJSON(USERS_FILE, users);
     return res.json({ ok: true });
   }
 
