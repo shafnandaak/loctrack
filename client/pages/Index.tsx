@@ -222,12 +222,19 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
   const [authUser, setAuthUser] = useState<any | null>(null);
 
   useEffect(() => {
+    // prefer local session, fallback to supabase
+    const local = (() => { try { return JSON.parse(sessionStorage.getItem("loctrack:session") || "null"); } catch { return null; } })();
+    if (local) {
+      setAuthUser(local);
+      setName(local.name || local.email?.split("@")[0] || "");
+      setKecamatan(local.kecamatan || "");
+      return;
+    }
     (async () => {
       const u = await getCurrentUser().catch(() => null);
       setAuthUser(u);
       if (u) {
         setName(u.user_metadata?.full_name || u.email.split("@")[0]);
-        // try to infer kecamatan from metadata if present
         setKecamatan(u.user_metadata?.kecamatan || "");
       } else {
         const existing = getUsers()[0];
