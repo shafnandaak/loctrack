@@ -26,6 +26,7 @@ import {
   distanceMeters,
 } from "@/lib/loctrack";
 import { format } from "date-fns";
+import { getCurrentUser } from "@/lib/supabase";
 
 export default function Index() {
   const [tab, setTab] = useState("monitor");
