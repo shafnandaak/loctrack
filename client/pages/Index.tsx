@@ -92,9 +92,10 @@ function Hero({ isAdmin }: { isAdmin?: boolean }) {
           Setiap pengguna memiliki riwayat per hari untuk kebutuhan laporan.
         </p>
       </div>
-      <div className="rounded-xl border bg-white/70 p-3 shadow-sm">
-        <div className="aspect-[16/9] rounded-lg overflow-hidden">
-          <LiveMap isAdmin={isAdmin} />
+      <div className="rounded-xl border bg-white/70 p-3 shadow-sm flex items-center justify-center">
+        <div className="text-center py-8">
+          <h3 className="text-lg font-semibold">LocTrack</h3>
+          <p className="text-sm text-muted-foreground">Dashboard monitoring tersedia pada tab Monitoring—tidak ada peta dekoratif di sini.</p>
         </div>
       </div>
     </div>
