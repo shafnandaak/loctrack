@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { LiveMap } from "@/components/map/LiveMap";
 import { HistoryMap } from "@/components/map/HistoryMap";
 import { BadgeCheck, MapPin, Play, Square, Upload, Users } from "lucide-react";
 import {
