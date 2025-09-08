@@ -255,11 +255,11 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
     return u;
   }, [name, kecamatan, onChanged]);
 
-  // send point if moved more than 5m from lastPoint
+  // send point if moved more than 50m from lastPoint
   const shouldSend = useCallback((p: PositionPoint) => {
     const last = lastPointRef.current;
     if (!last) return true;
-    return distanceMeters(last, p) >= 5;
+    return distanceMeters(last, p) >= 50;
   }, []);
 
   const handleStart = useCallback(() => {
@@ -271,10 +271,32 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
       alert("Perangkat tidak mendukung Geolocation");
       return;
     }
+    // enforce one naming per day and one share per day
+    const today = dateKey();
+    const tentativeId = slugify(name) || randomId();
+    const namedKey = `loctrack:named:${tentativeId}:${today}`;
+    const sharedKey = `loctrack:shared:${tentativeId}:${today}`;
+    if (!localStorage.getItem(namedKey)) {
+      // first time naming today -> persist
+      localStorage.setItem(namedKey, JSON.stringify({ name, kecamatan }));
+    } else {
+      // if name exists today, ensure it matches
+      const prev = JSON.parse(localStorage.getItem(namedKey) || "null");
+      if (prev && prev.name && prev.name !== name) {
+        return alert("Anda sudah menamai hari ini; tidak boleh mengganti nama lagi hari ini.");
+      }
+    }
+
+    if (localStorage.getItem(sharedKey)) {
+      return alert("Anda sudah memulai share hari ini dan hanya diizinkan 1x per hari.");
+    }
+
     if (!confirm("Apakah anda yakin akan memulai live location?")) return;
     const user = ensureUser();
     // persist kecamatan on user record
     upsertUser({ id: user.id, name: user.name, color: user.color, kecamatan: kecamatan || undefined });
+    localStorage.setItem(sharedKey, JSON.stringify({ startedAt: Date.now() }));
+
     const key = dateKey();
     const options: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
     const sessionId = randomId();
@@ -301,7 +323,7 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
     );
     watchRef.current = id;
     setWatching(true);
-  }, [ensureUser, onChanged, shouldSend, isAdmin]);
+  }, [ensureUser, onChanged, shouldSend, isAdmin, name, kecamatan]);
 
   const handleStop = useCallback(() => {
     if (!confirm("Apakah anda yakin akan mengakhiri live location?")) return;
