@@ -85,12 +85,27 @@ export function LiveMap({ isAdmin }: { isAdmin?: boolean }) {
       />
       {Object.entries(positions).map(([userId, p]) => {
         const u = users.find((x) => x.id === userId);
+        // compute stop duration from today's history
+        const hist = getHistory(userId, dateKey());
+        const stops = analyzeStops(hist);
+        let stopInfo: { durationSec: number; start?: number } | null = null;
+        if (stops.length) {
+          // find a stop that includes the last point (close to current)
+          const lastStop = stops[stops.length - 1];
+          const d = Math.sqrt((lastStop.lat - p.lat) ** 2 + (lastStop.lng - p.lng) ** 2);
+          // crude check using degrees; convert threshold ~0.0001 ~ 11m, use 0.00015
+          if (d <= 0.00015) {
+            const durationSec = Math.floor((Date.now() - lastStop.start) / 1000);
+            stopInfo = { durationSec, start: lastStop.start };
+          }
+        }
         return (
           <Marker key={userId} position={[p.lat, p.lng]}>
             <Popup>
               <div className="text-sm">
                 <div className="font-semibold">{u?.name || userId}</div>
                 <div>{new Date(p.timestamp).toLocaleTimeString()}</div>
+                {stopInfo && <div>Menginap: {Math.floor(stopInfo.durationSec/3600)}j {Math.floor((stopInfo.durationSec%3600)/60)}m</div>}
                 {typeof p.accuracy === "number" && <div>Akurasi: ±{Math.round(p.accuracy)} m</div>}
               </div>
             </Popup>
