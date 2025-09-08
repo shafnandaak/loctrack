@@ -280,7 +280,24 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
             </div>
             <div>
               <label className="text-sm font-medium">Kecamatan</label>
-              <Input placeholder="Kecamatan" value={kecamatan} onChange={(e) => setKecamatan(e.target.value)} />
+              <select className="mt-1 w-full rounded-md border bg-background px-3 py-2" value={kecamatan} onChange={(e) => setKecamatan(e.target.value)}>
+                <option value="">Pilih Kecamatan</option>
+                {[
+                  "Bungursari",
+                  "Cibeureum",
+                  "Purbaratu",
+                  "Indihiang",
+                  "Kawalu",
+                  "Mangkubumi",
+                  "Tamansari",
+                  "Cihideung",
+                  "Tawang",
+                  "Cipedes",
+                  "Indihiang",
+                ].map((k) => (
+                  <option key={k} value={k}>{k}</option>
+                ))}
+              </select>
             </div>
             <div className="flex items-end gap-3">
               {!watching ? (
