@@ -30,13 +30,27 @@ import { getCurrentUser } from "@/lib/supabase";
 export default function Index() {
   const [tab, setTab] = useState("monitor");
   const [usersTick, setUsersTick] = useState(0);
+  const [authUser, setAuthUser] = useState<any | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => onStorageChange(() => setUsersTick((t) => t + 1)), []);
+  useEffect(() => {
+    (async () => {
+      const u = await getCurrentUser().catch(() => null);
+      setAuthUser(u);
+      try {
+        const list = (localStorage.getItem("loctrack:admins") || "").split(",").map((s) => s.trim()).filter(Boolean);
+        setIsAdmin(!!u && list.includes(u.email));
+      } catch {
+        setIsAdmin(false);
+      }
+    })();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-indigo-50">
       <Header />
       <main className="container py-8">
-        <Hero />
+        <Hero isAdmin={isAdmin} />
         <Tabs value={tab} onValueChange={setTab} className="mt-8">
           <TabsList>
             <TabsTrigger value="monitor" id="monitor">Monitoring</TabsTrigger>
