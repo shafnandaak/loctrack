@@ -63,6 +63,18 @@ export const handlePoints: RequestHandler = (req, res) => {
     return res.json({ ok: true });
   }
 
+  // support updating user profile: POST { type: 'user', user }
+  if (req.method === "POST" && req.body && req.body.type === "user") {
+    const u = req.body.user as any;
+    if (!u || !u.id) return res.status(400).json({ error: "user.id required" });
+    const users = readJSON(USERS_FILE) || [];
+    const idx2 = users.findIndex((x: any) => x.id === u.id);
+    const stored = { id: u.id, name: u.name || u.id, color: u.color || "#06b6d4", kecamatan: u.kecamatan };
+    if (idx2 >= 0) users[idx2] = { ...users[idx2], ...stored }; else users.push(stored);
+    writeJSON(USERS_FILE, users);
+    return res.json({ ok: true });
+  }
+
   // GET handlers
   if (req.method === "GET") {
     const q = req.query;
