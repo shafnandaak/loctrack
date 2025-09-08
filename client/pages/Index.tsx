@@ -23,6 +23,7 @@ import {
   setLivePosition,
   totalDistance,
   upsertUser,
+  distanceMeters,
 } from "@/lib/loctrack";
 import { format } from "date-fns";
 
