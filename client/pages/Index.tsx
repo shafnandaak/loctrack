@@ -482,74 +482,86 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
     return res;
   }, [points]);
 
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5" /> Rute {user?.name || "-"} — {format(date, "dd MMM yyyy")}</CardTitle>
-          <CardDescription>Visualisasi riwayat lokasi per hari.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[420px] rounded-lg overflow-hidden">
-            <HistoryMap points={points} color={user?.color} />
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Filter & Ekspor</CardTitle>
           <CardDescription>Pilih pengguna dan tanggal untuk melihat riwayat.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Pengguna</label>
-            <select className="mt-1 w-full rounded-md border bg-background px-3 py-2" value={userId} onChange={(e) => setUserId(e.target.value)}>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Tanggal</label>
-            <div className="mt-2 rounded-md border p-2">
-              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <a href={jsonBlob || undefined} download={`loctrack-${user?.name || "user"}-${key}.json`}>
-              <Button className="gap-2"><Upload className="h-4 w-4" /> Export JSON</Button>
-            </a>
-            <label className="text-sm text-muted-foreground">
-              <span className="sr-only">Import</span>
-              <input type="file" accept="application/json" onChange={onImport} className="block" />
-            </label>
-          </div>
-          <div className="text-sm text-muted-foreground">Titik: {points.length} • Jarak: {(totalDistance(points)/1000).toFixed(2)} km</div>
-          <div className="mt-3">
-            <h4 className="text-sm font-medium">Ringkasan perjalanan</h4>
-            <div className="text-sm text-muted-foreground mt-2">
-              Durasi: {points.length ? Math.max(0, Math.floor((points[points.length-1].timestamp - points[0].timestamp)/1000)) : 0} detik
-            </div>
-            <div className="text-sm text-muted-foreground">Berhenti (stop) terdeteksi: {analyzeStops(points).length}</div>
-            <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-              {analyzeStops(points).map((s, i) => (
-                <li key={i}>Stop {i+1}: {(s.duration/1000).toFixed(0)}s • Titik: {s.count} • Lokasi: {s.lat.toFixed(4)}, {s.lng.toFixed(4)}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="mt-3">
-            <h4 className="text-sm font-medium">Timestamps & Durasi per titik</h4>
-            <div className="mt-2 max-h-48 overflow-auto border rounded p-2 bg-background">
-              <ul className="text-sm">
-                {pointDurations.length === 0 && <li className="text-muted-foreground">Tidak ada titik</li>}
-                {pointDurations.map((pd, idx) => (
-                  <li key={idx} className="flex justify-between py-1 border-b last:border-b-0">
-                    <div>{new Date(pd.point.timestamp).toLocaleTimeString()}</div>
-                    <div className="text-muted-foreground">{pd.durationSec}s</div>
-                  </li>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="text-sm font-medium">Pengguna</label>
+              <select className="mt-1 w-full rounded-md border bg-background px-3 py-2" value={userId} onChange={(e) => setUserId(e.target.value)}>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
-              </ul>
+              </select>
             </div>
+            <div>
+              <label className="text-sm font-medium">Tanggal</label>
+              <div className="mt-2 rounded-md border p-2">
+                <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
+              </div>
+            </div>
+            <div className="flex flex-col justify-between">
+              <div className="flex gap-2">
+                <a href={jsonBlob || undefined} download={`loctrack-${user?.name || "user"}-${key}.json`}>
+                  <Button className="gap-2"><Upload className="h-4 w-4" /> Export JSON</Button>
+                </a>
+                <button onClick={() => { if (user) exportUserCsv(user.id); }} className="rounded-md border px-3 py-1">Export CSV</button>
+              </div>
+              <label className="text-sm text-muted-foreground">
+                <span className="sr-only">Import</span>
+                <input type="file" accept="application/json" onChange={onImport} className="block mt-2" />
+              </label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tabel Riwayat — {user?.name || "-"} • {format(date, "dd MMM yyyy")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left">
+                  <th className="px-2 py-2">Koordinat</th>
+                  <th className="px-2 py-2">Timestamp</th>
+                  <th className="px-2 py-2">Durasi (s)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pointDurations.length === 0 && (
+                  <tr><td colSpan={3} className="p-4 text-muted-foreground">Tidak ada titik</td></tr>
+                )}
+                {pointDurations.map((pd, idx) => (
+                  <tr key={idx} className="border-t">
+                    <td className="px-2 py-2"><button className="text-blue-600 underline" onClick={() => setSelectedIndex(idx)}>{pd.point.lat.toFixed(6)}, {pd.point.lng.toFixed(6)}</button></td>
+                    <td className="px-2 py-2">{new Date(pd.point.timestamp).toLocaleString()}</td>
+                    <td className="px-2 py-2">{pd.durationSec}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Map — Rute</CardTitle>
+          <CardDescription>Klik koordinat di tabel untuk menyorot titik.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[480px] rounded-lg overflow-hidden">
+            <HistoryMap points={points} color={user?.color} selectedIndex={selectedIndex} />
           </div>
         </CardContent>
       </Card>
