@@ -284,7 +284,7 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
     return distanceMeters(last, p) >= 50;
   }, []);
 
-  const handleStart = useCallback(() => {
+  const startWatch = useCallback((user: User, skipConfirm = false) => {
     if (isAdmin) {
       alert("Akun admin tidak dapat membagikan lokasi.");
       return;
@@ -293,23 +293,29 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
       alert("Perangkat tidak mendukung Geolocation");
       return;
     }
-    if (!confirm("Apakah anda yakin akan memulai live location?")) return;
-    const user = ensureUser();
-
-    // enforce one share per day per account
-    const today = dateKey();
-    const sharedKey = `loctrack:shared:${user.id}:${today}`;
-    if (localStorage.getItem(sharedKey)) {
-      return alert("Anda sudah memulai share hari ini dan hanya diizinkan 1x per hari.");
-    }
+    if (!skipConfirm && !confirm("Apakah anda yakin akan memulai live location?")) return;
 
     // persist kecamatan on user record
     upsertUser({ id: user.id, name: user.name, color: user.color, kecamatan: kecamatan || undefined });
+    const today = dateKey();
+    const sharedKey = `loctrack:shared:${user.id}:${today}`;
     try { localStorage.setItem(sharedKey, JSON.stringify({ startedAt: Date.now() })); } catch {}
 
     const key = dateKey();
     const options: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 };
     const sessionId = randomId();
+
+    // seed current position once to avoid wrong default locations
+    try {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const p: PositionPoint = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, timestamp: Date.now(), sessionId };
+        lastPointRef.current = p;
+        setLivePosition(user.id, p);
+        pushHistoryPoint(user.id, key, p);
+        onChanged();
+      }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+    } catch {}
+
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         const p: PositionPoint = {
@@ -327,13 +333,18 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
       },
       (err) => {
         console.error(err);
-        alert("Gagal membaca lokasi: " + err.message);
+        // do not spam user with alerts on auto-resume
       },
       options,
     );
     watchRef.current = id;
     setWatching(true);
-  }, [ensureUser, onChanged, shouldSend, isAdmin, name, kecamatan]);
+  }, [isAdmin, kecamatan, onChanged, shouldSend]);
+
+  const handleStart = useCallback(() => {
+    const user = ensureUser();
+    startWatch(user, false);
+  }, [ensureUser, startWatch]);
 
   const handleStop = useCallback(() => {
     if (!confirm("Apakah anda yakin akan mengakhiri live location?")) return;
