@@ -27,6 +27,7 @@ import {
 } from "@/lib/loctrack";
 import { format } from "date-fns";
 import { getCurrentUser } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Index() {
   const [tab, setTab] = useState("monitor");
