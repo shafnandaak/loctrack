@@ -330,8 +330,14 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
         setLivePosition(user.id, p);
         pushHistoryPoint(user.id, key, p);
         onChanged();
-      }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
-    } catch {}
+      }, (err) => {
+        const msg = geoErrMsg(err);
+        try { toast({ title: 'Lokasi gagal', description: msg }); } catch {}
+        console.error('getCurrentPosition error', err);
+      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+    } catch (e) {
+      try { toast({ title: 'Lokasi gagal', description: 'Tidak dapat mengakses fitur lokasi pada perangkat.' }); } catch {}
+    }
 
     const id = navigator.geolocation.watchPosition(
       (pos) => {
@@ -349,8 +355,15 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
         onChanged();
       },
       (err) => {
-        console.error(err);
-        // do not spam user with alerts on auto-resume
+        console.error('watchPosition error', err);
+        const msg = geoErrMsg(err);
+        try { toast({ title: 'Lokasi error', description: msg }); } catch {}
+        // If permission denied, stop watching
+        if (err && err.code === 1) {
+          try { if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current); } catch {}
+          watchRef.current = null;
+          setWatching(false);
+        }
       },
       options,
     );
