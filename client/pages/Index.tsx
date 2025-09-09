@@ -353,10 +353,48 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
     setWatching(false);
     // mark end of share session
     const today = dateKey();
-    const id = slugify(name) || randomId();
+    const id = (authUser && (authUser.id || authUser.sub || authUser.email)) || slugify(name) || randomId();
     const sharedKey = `loctrack:shared:${id}:${today}`;
     try { localStorage.removeItem(sharedKey); } catch {}
-  }, [name]);
+  }, [name, authUser]);
+
+  // auto-resume if there is an active sharedKey for today and we're online
+  useEffect(() => {
+    const tryResume = () => {
+      try {
+        const id = (authUser && (authUser.id || authUser.sub || authUser.email)) || slugify(name) || randomId();
+        const today = dateKey();
+        const sharedKey = `loctrack:shared:${id}:${today}`;
+        if (localStorage.getItem(sharedKey) && !watchRef.current && navigator.onLine) {
+          // resume without confirm
+          const u: User = { id, name: name || id, color: randomColor(id), kecamatan: kecamatan || undefined };
+          startWatch(u, true);
+        }
+      } catch {}
+    };
+    tryResume();
+    window.addEventListener('online', tryResume);
+    return () => window.removeEventListener('online', tryResume);
+  }, [authUser, name, kecamatan, startWatch]);
+
+  const users = useMemo(() => getUsers(), [/* tick handled above */]);
+  const storedUser = users.find((u) => u.id === ((authUser && (authUser.id || authUser.sub || authUser.email)) || slugify(name) || randomId()));
+  const profileLocked = !!(storedUser && storedUser.name);
+
+  const deleteHistoryAccount = useCallback(async () => {
+    const id = (authUser && (authUser.id || authUser.sub || authUser.email)) || slugify(name) || randomId();
+    if (!confirm('Hapus seluruh history akun ini pada server & local? Tindakan ini tidak dapat dibatalkan.')) return;
+    try {
+      await fetch(`/api/points?action=history-delete&userId=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } catch {}
+    // clear local storage history keys
+    try {
+      const prefix = 'loctrack:history:' + id + ':';
+      Object.keys(localStorage).forEach((k) => { if (k.startsWith(prefix)) localStorage.removeItem(k); });
+    } catch {}
+    alert('History dihapus.');
+    onChanged();
+  }, [authUser, name, onChanged]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -368,8 +406,12 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-medium">Nama</label>
-              <Input placeholder="Nama Anda" value={name} onChange={(e) => setName(e.target.value)} />
+              <label className="text-sm font-medium">Email</label>
+              <Input placeholder="Email" value={(authUser && (authUser.email || authUser.user_metadata?.email)) || ''} disabled />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Nama (sekali atur)</label>
+              <Input placeholder="Nama Anda" value={name} onChange={(e) => setName(e.target.value)} disabled={profileLocked} />
             </div>
             <div>
               <label className="text-sm font-medium">Kecamatan</label>
@@ -392,7 +434,18 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
               </select>
             </div>
             <div className="flex items-end gap-3">
-              <Button onClick={() => { ensureUser(); alert('Profil tersimpan'); }} className="gap-2">Simpan Profil</Button>
+              <Button onClick={() => {
+                // save profile but prevent changing name if locked
+                const user = ensureUser();
+                if (profileLocked) {
+                  // only update kecamatan
+                  upsertUser({ id: user.id, name: user.name, color: user.color, kecamatan: kecamatan || undefined });
+                } else {
+                  ensureUser();
+                }
+                alert('Profil tersimpan');
+              }} className="gap-2">Simpan Profil</Button>
+              <Button onClick={deleteHistoryAccount} variant="destructive" className="gap-2">Hapus History</Button>
               {!watching ? (
                 <Button onClick={handleStart} className="gap-2"><Play className="h-4 w-4" /> Mulai Share</Button>
               ) : (
@@ -401,7 +454,7 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
             </div>
           </div>
           <div className="mt-4 text-sm text-muted-foreground">
-            Saat aktif, aplikasi akan mengirim lokasi otomatis saat berpindah ≥5m dan menyimpannya per hari.
+            Saat aktif, aplikasi akan mengirim lokasi otomatis saat berpindah ≥5m dan menyimpannya per hari. Nama hanya dapat diatur sekali dan akan melekat ke akun Google Anda.
           </div>
         </CardContent>
       </Card>
