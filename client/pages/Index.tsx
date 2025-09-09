@@ -286,6 +286,21 @@ function ShareSection({ onChanged, isAdmin }: { onChanged: () => void; isAdmin?:
     return distanceMeters(last, p) >= 50;
   }, []);
 
+  const { toast } = useToast();
+
+  function geoErrMsg(err: any) {
+    try {
+      if (!err) return "Kesalahan lokasi tidak diketahui";
+      const code = err.code;
+      if (code === 1) return "Izin lokasi ditolak. Aktifkan izin lokasi pada browser dan coba lagi.";
+      if (code === 2) return "Lokasi tidak tersedia. Periksa koneksi GPS atau coba lagi nanti.";
+      if (code === 3) return "Permintaan lokasi timeout. Coba lagi.";
+      return err.message || String(err);
+    } catch (e) {
+      return "Kesalahan lokasi";
+    }
+  }
+
   const startWatch = useCallback((user: User, skipConfirm = false) => {
     if (isAdmin) {
       alert("Akun admin tidak dapat membagikan lokasi.");
