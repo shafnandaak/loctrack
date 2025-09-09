@@ -550,6 +550,7 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
   }, [points]);
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -606,7 +607,13 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
                       return years.map((y) => <option key={y} value={y}>{y}</option>);
                     })()}
                   </select>
+                  <button onClick={() => setShowCalendar((s) => !s)} className="ml-2 rounded-md border px-2 py-1 text-sm">Pilih dari kalender</button>
                 </div>
+                {showCalendar && (
+                  <div className="mt-3">
+                    <Calendar mode="single" selected={date} onSelect={(d) => { if (d) setDate(d); setShowCalendar(false); }} />
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-col justify-between">
