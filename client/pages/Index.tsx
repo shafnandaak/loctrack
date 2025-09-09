@@ -571,7 +571,7 @@ function HistorySection({ tick, isAdmin }: { tick: number; isAdmin?: boolean }) 
             <div>
               <label className="text-sm font-medium">Tanggal</label>
               <div className="mt-2 rounded-md border p-2">
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <select className="rounded-md border px-2 py-1" value={date.getDate()} onChange={(e) => {
                     const day = Number(e.target.value);
                     const nd = new Date(date);
