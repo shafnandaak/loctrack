@@ -75,6 +75,23 @@ export const handlePoints: RequestHandler = (req, res) => {
     return res.json({ ok: true });
   }
 
+  // DELETE handlers
+  if (req.method === "DELETE") {
+    const q = req.query as any;
+    if (q.action === 'history-delete') {
+      const userId = String(q.userId || '');
+      if (!userId) return res.status(400).json({ error: 'userId required' });
+      const histDir = path.join(DATA_DIR, 'history');
+      if (!fs.existsSync(histDir)) return res.json({ ok: true });
+      const files = fs.readdirSync(histDir).filter(f => f.startsWith(userId + ':'));
+      for (const f of files) {
+        try { fs.unlinkSync(path.join(histDir, f)); } catch {}
+      }
+      return res.json({ ok: true });
+    }
+    return res.status(400).json({ error: 'unsupported delete' });
+  }
+
   // GET handlers
   if (req.method === "GET") {
     const q = req.query;
