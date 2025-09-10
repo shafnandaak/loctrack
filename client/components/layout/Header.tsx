@@ -1,47 +1,65 @@
 import { Link } from "react-router-dom";
 import { MapPinned, LogIn, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getCurrentUser, onAuthChange, signInWithGoogle, signOut } from "@/lib/supabase";
+// --- HAPUS SEMUA IMPORT SUPABASE ---
+// import { getCurrentUser, onAuthChange, signInWithGoogle, signOut } from "@/lib/supabase";
+
+// +++ TAMBAHKAN IMPORT FIREBASE +++
+import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
+import { auth, googleProvider } from "@/lib/firebase";
+
 
 export function Header() {
-  const [user, setUser] = useState<any | null>(null);
+  // State untuk menyimpan data user dari Firebase
+  const [user, setUser] = useState<User | null>(null);
   const [time, setTime] = useState(new Date());
 
+  // useEffect untuk memantau status login pengguna
   useEffect(() => {
-    (async () => setUser(await getCurrentUser().catch(() => null)))();
-    const unsub = onAuthChange((_, session) => setUser(session?.user ?? null));
-    return unsub;
+    // onAuthStateChanged adalah listener dari Firebase
+    // yang akan berjalan setiap kali ada perubahan status login/logout
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser); // Jika ada user, simpan di state. Jika tidak, state akan jadi null.
+    });
+
+    // Membersihkan listener saat komponen tidak lagi digunakan
+    return () => unsubscribe();
   }, []);
 
+  // useEffect untuk jam digital
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const sessionUser = user;
-
+  // Cek apakah user adalah admin (logika ini tetap sama)
   const isAdmin = (() => {
     try {
       const list = (localStorage.getItem("loctrack:admins") || "").split(",").map((s) => s.trim()).filter(Boolean);
-      const email = sessionUser?.email;
+      const email = user?.email;
       return !!email && list.includes(email);
     } catch {
       return false;
     }
   })();
 
+  // Fungsi untuk handle login dengan Google via Firebase
   const handleLoginGoogle = async () => {
     try {
-      await signInWithGoogle();
+      await signInWithPopup(auth, googleProvider);
     } catch (e) {
-      // Supabase not configured or popup blocked
-      alert("Google Sign-In tidak tersedia. Pastikan Supabase OAuth diatur. Silakan hubungkan Supabase di Open MCP popover dan atur VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY.");
+      console.error("Google Sign-In Error:", e);
+      alert("Gagal login dengan Google. Silakan coba lagi.");
     }
   };
 
+  // Fungsi untuk handle logout dari Firebase
   const handleLogout = async () => {
-    try { await signOut(); } catch {}
-    setUser(null);
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error("Sign-Out Error:", e);
+    }
   };
 
   return (
@@ -59,9 +77,13 @@ export function Header() {
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">{time.toLocaleTimeString()}</div>
           {isAdmin && <span className="rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">Admin</span>}
-          {sessionUser ? (
+          
+          {/* Tampilkan tombol logout jika ada user, atau tombol login jika tidak ada */}
+          {user ? (
             <button onClick={handleLogout} className="inline-flex items-center gap-2 rounded-md border px-2 py-1 text-sm">
-              <LogOut className="h-4 w-4" /> {sessionUser.email || sessionUser.user_metadata?.full_name}
+              <LogOut className="h-4 w-4" /> 
+              {/* Tampilkan nama atau email user dari Firebase */}
+              {user.displayName || user.email}
             </button>
           ) : (
             <button onClick={handleLoginGoogle} className="inline-flex items-center gap-2 rounded-md border px-2 py-1 text-sm">
