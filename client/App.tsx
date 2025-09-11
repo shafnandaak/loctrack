@@ -1,46 +1,66 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import LoginPage from "./pages/Login"; // Impor halaman login baru
-import { Toaster } from "./components/ui/toaster";
-import { useAuthState } from 'react-firebase-hooks/auth'; // Library helper untuk status auth
-import { auth } from "./lib/firebase";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import IndexPage from "./pages/Index";
+import NotFoundPage from "./pages/NotFound";
+import LoginPage from "./pages/Login";
+import { useAuth } from "./hooks/useAuth";
+import { Header } from "./components/layout/Header";
+import { Footer } from "./components/layout/Footer";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Loader2 } from "lucide-react";
 
-// Komponen untuk melindungi rute
-function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const [user, loading] = useAuthState(auth);
+// Komponen untuk melindungi rute yang butuh login
+function ProtectedRoute() {
+  // ==== PERBAIKAN: Gunakan 'localUser' bukan 'user' ====
+  const { localUser, loading } = useAuth();
 
   if (loading) {
-    // Tampilkan loading screen sederhana selagi memeriksa status login
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin" />
+      </div>
+    );
   }
 
-  if (!user) {
-    // Jika tidak ada user, arahkan ke halaman login
+  if (!localUser) {
+    // Jika belum login, arahkan ke halaman /login
     return <Navigate to="/login" replace />;
   }
 
-  // Jika ada user, tampilkan halaman yang diminta
-  return children;
+  // Jika sudah login, tampilkan konten (halaman utama)
+  return <MainLayout />;
+}
+
+// Komponen untuk tata letak halaman utama (dengan Header dan Footer)
+function MainLayout() {
+  return (
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-teal-50 via-white to-indigo-50">
+      <Header />
+      <main className="flex-grow">
+        {/* Outlet akan merender komponen anak dari rute, yaitu IndexPage */}
+        <Outlet /> 
+      </main>
+      <Footer />
+    </div>
+  );
 }
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route 
-          path="/" 
-          element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          } 
-        />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster />
-    </BrowserRouter>
+    <>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          
+          {/* Rute terproteksi untuk halaman utama */}
+          <Route path="/" element={<ProtectedRoute />}>
+            <Route index element={<IndexPage />} />
+          </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </BrowserRouter>
+      <Sonner />
+    </>
   );
 }
 

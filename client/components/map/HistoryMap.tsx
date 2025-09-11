@@ -1,96 +1,61 @@
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+// Impor tipe yang benar dari file terpusat
+import { PositionPoint } from "@/lib/location"; 
 import { useEffect } from "react";
-import "leaflet/dist/images/marker-icon.png";
-import "leaflet/dist/images/marker-icon-2x.png";
-import "leaflet/dist/images/marker-shadow.png";
 
-const DefaultIcon = L.icon({
-  iconUrl: "/marker-icon.png",
-  iconRetinaUrl: "/marker-icon-2x.png",
-  shadowUrl: "/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-L.Marker.prototype.options.icon = DefaultIcon;
+// (Kode ikon marker tetap sama)
+const icon = L.icon({ iconUrl: "/marker-icon.png", iconSize: [25, 41], iconAnchor: [12, 41] });
+const selectedIcon = L.icon({ iconUrl: "/marker-icon-selected.png", iconSize: [32, 52], iconAnchor: [16, 52] });
 
-// Interface ini akan kita gunakan juga di Index.tsx
-export interface LocationPoint {
-  lat: number;
-  lng: number;
-  timestamp: number;
-  duration: number;
-}
-
-// Komponen MapEffects diubah sedikit untuk fokus ke titik yang dipilih
-function MapEffects({ points, selectedIndex }: { points: LocationPoint[]; selectedIndex: number | null }) {
+function MapEffects({ points, selectedIndex }: { points: PositionPoint[]; selectedIndex?: number | null }) {
   const map = useMap();
   useEffect(() => {
+    // Invalidate size untuk memastikan peta tampil benar saat tab diaktifkan
+    setTimeout(() => map.invalidateSize(), 100);
+
     if (!points || points.length === 0) return;
 
-    // Jika ada index yang dipilih, fokus ke sana
-    if (selectedIndex !== null && points[selectedIndex]) {
+    if (selectedIndex != null && points[selectedIndex]) {
       const p = points[selectedIndex];
       map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15));
+    } else {
+      map.fitBounds(points.map(p => [p.lat, p.lng]), { padding: [50, 50] });
     }
-  }, [map, points, selectedIndex]); // Efek hanya berjalan jika selectedIndex berubah
+  }, [map, points, selectedIndex]);
   return null;
 }
 
-// Props diubah, sekarang menerima 'points' langsung
-type Props = {
-  points: LocationPoint[];
-  color?: string;
-  selectedIndex: number | null;
-};
-
-export function HistoryMap({ points, color = "#22c55e", selectedIndex }: Props) {
-  const center = points.length ? [points[0].lat, points[0].lng] as [number, number] : ([-7.32, 108.21] as [number, number]);
-  const poly = points.map((p) => [p.lat, p.lng]) as [number, number][];
-
-  if (!points.length) {
+// Pastikan props "points" menggunakan tipe `PositionPoint[]`
+export function HistoryMap({ points, selectedIndex }: { points: PositionPoint[]; selectedIndex?: number | null }) {
+  if (!points || points.length === 0) {
     return (
-        <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted">
-            <p className="text-muted-foreground">Tidak ada data history pada tanggal ini.</p>
+        <div className="flex h-full w-full items-center justify-center bg-muted">
+            <p className="text-muted-foreground">Tidak ada data riwayat untuk ditampilkan di peta.</p>
         </div>
     );
   }
 
   return (
-    <MapContainer {...{center: center, zoom: 13, style: { height: "100%", width: "100%", borderRadius: 12 }}}>
+    <MapContainer center={[points[0].lat, points[0].lng]} zoom={13} style={{ height: "100%", width: "100%" }}>
       <TileLayer
-        {...{
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        }}
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
-      <MapEffects points={points} selectedIndex={selectedIndex} />
-      {poly.length >= 2 && (
-        <Polyline positions={poly} pathOptions={{ color, weight: 4 }} />
-      )}
-      {points.map((pt, i) => (
-        <Marker key={i} position={[pt.lat, pt.lng]}>
+      <Polyline positions={points.map(p => [p.lat, p.lng])} color="blue" />
+      {points.map((p, i) => (
+        <Marker 
+            key={p.timestamp} 
+            position={[p.lat, p.lng]} 
+            icon={selectedIndex === i ? selectedIcon : icon}
+        >
           <Popup>
-            Waktu: {new Date(pt.timestamp).toLocaleTimeString()}
-            <br />
-            Durasi: {i > 0 ? formatDuration(pt.duration) : 'Titik awal'}
+            {new Date(p.timestamp).toLocaleString("id-ID", { timeStyle: "medium", dateStyle: "short" })}
           </Popup>
         </Marker>
       ))}
+      <MapEffects points={points} selectedIndex={selectedIndex} />
     </MapContainer>
   );
 }
-
-// Pindahkan fungsi formatDuration ke sini agar bisa digunakan di komponen lain jika perlu
-export function formatDuration(ms: number) {
-    if (ms < 1000) return `0d`;
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-  
-    if (minutes > 0) {
-      return `${minutes}m ${remainingSeconds}d`;
-    }
-    return `${seconds}d`;
-  }

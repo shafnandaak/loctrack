@@ -1,10 +1,29 @@
-// Definisikan tipe data PositionPoint di sini
+// Definisikan tipe data PositionPoint di sini atau impor dari berkas tipe terpusat
 export type PositionPoint = {
   lat: number;
   lng: number;
   timestamp: number; // ms epoch
   accuracy?: number | null;
 };
+
+/**
+ * Menghitung durasi antara dua titik dalam format string (menit, detik).
+ * @param start Titik awal.
+ * @param end Titik akhir.
+ * @returns String durasi yang diformat.
+ */
+export function formatDuration(start: PositionPoint, end: PositionPoint): string {
+  if (!start || !end) return "-";
+  
+  const seconds = Math.floor((end.timestamp - start.timestamp) / 1000);
+  if (seconds < 0) return "-";
+  if (seconds < 60) return `${seconds} detik`;
+  
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  
+  return `${minutes} menit ${remainingSeconds} detik`;
+}
 
 /**
  * Menghitung jarak antara dua titik geografis dalam meter.
@@ -23,7 +42,7 @@ export function distanceMeters(a: PositionPoint, b: PositionPoint): number {
 }
 
 /**
- * Menghitung total jarak dari sebuah array titik perjalanan.
+ * Menghitung total jarak dari serangkaian titik.
  */
 export function totalDistance(list: PositionPoint[]): number {
   let dist = 0;
@@ -33,4 +52,3 @@ export function totalDistance(list: PositionPoint[]): number {
   }
   return dist;
 }
-
