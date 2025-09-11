@@ -1,133 +1,74 @@
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import "leaflet/dist/images/marker-icon.png";
+import "leaflet/dist/images/marker-icon-2x.png";
+import "leaflet/dist/images/marker-shadow.png";
 
-import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-
-import iconUrl from "leaflet/dist/images/marker-icon.png";
-import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
-import shadowUrl from "leaflet/dist/images/marker-shadow.png";
-
-const DefaultIcon = L.icon({ iconUrl, iconRetinaUrl, shadowUrl, iconSize: [25, 41], iconAnchor: [12, 41] });
+const DefaultIcon = L.icon({
+  iconUrl: "/marker-icon.png",
+  iconRetinaUrl: "/marker-icon-2x.png",
+  shadowUrl: "/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 L.Marker.prototype.options.icon = DefaultIcon;
 
-interface LocationPoint {
+// Interface ini akan kita gunakan juga di Index.tsx
+export interface LocationPoint {
   lat: number;
   lng: number;
   timestamp: number;
-  duration: number; // Durasi dalam milidetik dari titik sebelumnya
+  duration: number;
 }
 
-function formatDuration(ms: number) {
-  if (ms < 1000) return `${ms} ms`;
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
-  if (minutes > 0) {
-    return `${minutes} m ${remainingSeconds} d`;
-  }
-  return `${seconds} d`; // 'd' untuk detik
-}
-
-function MapEffects({ points, selectedIndex }: { points: LocationPoint[]; selectedIndex?: number | null }) {
+// Komponen MapEffects diubah sedikit untuk fokus ke titik yang dipilih
+function MapEffects({ points, selectedIndex }: { points: LocationPoint[]; selectedIndex: number | null }) {
   const map = useMap();
   useEffect(() => {
     if (!points || points.length === 0) return;
-    if (selectedIndex != null && points[selectedIndex]) {
+
+    // Jika ada index yang dipilih, fokus ke sana
+    if (selectedIndex !== null && points[selectedIndex]) {
       const p = points[selectedIndex];
-      map.setView([p.lat, p.lng], Math.max(map.getZoom(), 14));
-    } else {
-      const p = points[0];
-      map.setView([p.lat, p.lng], Math.max(map.getZoom(), 13));
+      map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15));
     }
-  }, [map, points, selectedIndex]);
+  }, [map, points, selectedIndex]); // Efek hanya berjalan jika selectedIndex berubah
   return null;
 }
 
+// Props diubah, sekarang menerima 'points' langsung
 type Props = {
-  user: string;
-  date: string;
+  points: LocationPoint[];
   color?: string;
-  selectedIndex?: number | null;
+  selectedIndex: number | null;
 };
 
-export function HistoryMap({ user, date, color = "#22c55e", selectedIndex }: Props) {
-  const [points, setPoints] = useState<LocationPoint[]>([]);
-
-  useEffect(() => {
-    const fetchHistory = async () => {
-      if (!user || !date) {
-        setPoints([]);
-        return;
-      }
-
-      try {
-        const startDate = new Date(`${date}T00:00:00`);
-        const endDate = new Date(`${date}T23:59:59`);
-        const historyRef = collection(db, 'location_history');
-        const q = query(
-          historyRef,
-          where('userId', '==', user),
-          where('recorded_at', '>=', startDate),
-          where('recorded_at', '<=', endDate),
-          orderBy('recorded_at', 'asc')
-        );
-
-        const querySnapshot = await getDocs(q);
-        const fetchedPoints = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            lat: data.latitude as number,
-            lng: data.longitude as number,
-            timestamp: (data.recorded_at as Timestamp).toMillis(),
-            duration: 0,
-          };
-        });
-
-        for (let i = 1; i < fetchedPoints.length; i++) {
-          const prevPoint = fetchedPoints[i - 1];
-          const currentPoint = fetchedPoints[i];
-          currentPoint.duration = currentPoint.timestamp - prevPoint.timestamp;
-        }
-
-        setPoints(fetchedPoints);
-      } catch (error) {
-        console.error("Error fetching location history:", error);
-        setPoints([]);
-      }
-    };
-
-    fetchHistory();
-  }, [user, date]);
-
-  const center = points.length ? [points[0].lat, points[0].lng] as [number, number] : ([-6.2, 106.816666] as [number, number]);
+export function HistoryMap({ points, color = "#22c55e", selectedIndex }: Props) {
+  const center = points.length ? [points[0].lat, points[0].lng] as [number, number] : ([-7.32, 108.21] as [number, number]);
   const poly = points.map((p) => [p.lat, p.lng]) as [number, number][];
 
   if (!points.length) {
     return (
         <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted">
-            <p className="text-muted-foreground">Memuat data history atau tidak ada data pada tanggal ini.</p>
+            <p className="text-muted-foreground">Tidak ada data history pada tanggal ini.</p>
         </div>
     );
   }
 
   return (
-    <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%", borderRadius: 12 }}>
+    <MapContainer {...{center: center, zoom: 13, style: { height: "100%", width: "100%", borderRadius: 12 }}}>
       <TileLayer
         {...{
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         }}
       />
-
       <MapEffects points={points} selectedIndex={selectedIndex} />
       {poly.length >= 2 && (
         <Polyline positions={poly} pathOptions={{ color, weight: 4 }} />
       )}
-
       {points.map((pt, i) => (
         <Marker key={i} position={[pt.lat, pt.lng]}>
           <Popup>
@@ -137,9 +78,19 @@ export function HistoryMap({ user, date, color = "#22c55e", selectedIndex }: Pro
           </Popup>
         </Marker>
       ))}
-
-      {/* Baris kode yang menyebabkan error sebelumnya sudah dihapus */}
-
     </MapContainer>
   );
 }
+
+// Pindahkan fungsi formatDuration ke sini agar bisa digunakan di komponen lain jika perlu
+export function formatDuration(ms: number) {
+    if (ms < 1000) return `0d`;
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+  
+    if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}d`;
+    }
+    return `${seconds}d`;
+  }
