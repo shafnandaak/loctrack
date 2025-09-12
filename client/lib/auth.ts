@@ -59,6 +59,7 @@ export function onLogout() {
 // 2. Menambahkan titik ke sub-koleksi riwayat (points).
 export async function sendPointToFirebase(userId: string, point: Omit<PositionPoint, 'timestamp'>) {
     if (!userId) return;
+    console.log(`Mengirim update untuk user ${userId} ke lokasi:`, point);
     try {
         const userDocRef = doc(db, "users", userId);
         const userPointsCollection = collection(db, `users/${userId}/points`);

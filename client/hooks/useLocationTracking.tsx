@@ -38,8 +38,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         return;
     };
     setSharing(true);
-
-    // ==== TAMBAHAN: Catat waktu mulai sesi di Firestore ====
     updateUserSessionStatus(localUser.id, { sessionStartedAt: serverTimestamp() });
 
     navigator.geolocation.getCurrentPosition(position => {
@@ -69,7 +67,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     setSharing(false);
     lastPointRef.current = null;
     
-    // ==== TAMBAHAN: Hapus waktu mulai sesi di Firestore ====
     if(localUser) {
       updateUserSessionStatus(localUser.id, { sessionStartedAt: null });
     }
@@ -91,3 +88,4 @@ export const useLocationTracking = () => {
   }
   return context;
 };
+
