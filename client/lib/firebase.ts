@@ -1,61 +1,70 @@
-// client/lib/firebase.ts
-
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getFirestore, collection, query, where, getDocs, Timestamp, orderBy } from "firebase/firestore";
+import { GoogleAuthProvider } from "firebase/auth";
 import { PositionPoint } from "./location";
 
+// Konfigurasi Firebase Anda
 const firebaseConfig = {
-  apiKey: "AIzaSyCtWlMgajb_u3jcQujX7M0H-c4gpMk_M6Q",
-  authDomain: "nans-project-7362d.firebaseapp.com",
-  projectId: "nans-project-7362d",
-  storageBucket: "nans-project-7362d.appspot.com",
-  messagingSenderId: "526490169989",
-  appId: "1:526490169989:web:b19d15473e7763a7262fec"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
-
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export async function getHistoryForDate(userId: string, date: string): Promise<PositionPoint[]> {
-  try {
-    // SESUAIKAN DENGAN STRUKTUR BARU ANDA:
-    const pointsRef = collection(db, `location_history/${userId}/location_history`);
-    
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
 
+// ======================================================================
+//                            PERBAIKAN UTAMA
+// ======================================================================
+// Fungsi ini diperbaiki untuk mengambil data dari sub-koleksi 'points'
+// berdasarkan rentang waktu dari awal hingga akhir hari yang dipilih,
+// dengan penanganan zona waktu yang lebih baik.
+export async function getHistoryForDate(userId: string, date: string): Promise<PositionPoint[]> {
+  if (!userId) return [];
+
+  try {
+    // Membuat tanggal di zona waktu lokal, bukan UTC.
+    // Ini memastikan rentang waktu sesuai dengan hari yang dipilih pengguna.
+    const startOfDay = new Date(`${date}T00:00:00`);
+    const endOfDay = new Date(`${date}T23:59:59`);
+
+    // Ubah menjadi Firestore Timestamp untuk query
     const startTimestamp = Timestamp.fromDate(startOfDay);
     const endTimestamp = Timestamp.fromDate(endOfDay);
 
-    // Ubah "timestamp" menjadi "recorded_at" sesuai screenshot database Anda
+    const pointsCollection = collection(db, `users/${userId}/points`);
+    
+    // Buat query untuk memfilter dokumen berdasarkan rentang timestamp
     const q = query(
-      pointsRef, 
-      where("recorded_at", ">=", startTimestamp),
-      where("recorded_at", "<=", endTimestamp),
-      orderBy("recorded_at", "asc")
+      pointsCollection,
+      where("timestamp", ">=", startTimestamp),
+      where("timestamp", "<=", endTimestamp),
+      orderBy("timestamp", "asc") // Urutkan dari yang paling awal
     );
 
     const querySnapshot = await getDocs(q);
     const points: PositionPoint[] = [];
+
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      // Pastikan data timestamp ada dan merupakan objek Timestamp dari Firebase
-      if (data.recorded_at && typeof data.recorded_at.toMillis === 'function') {
+      // Pastikan timestamp ada dan valid
+      if (data.timestamp) {
         points.push({
-          // Sesuaikan nama field
-          lat: data.latitude,
-          lng: data.longitude,
-          timestamp: (data.recorded_at as Timestamp).toMillis(),
-          accuracy: data.accuracy || null, // Tambahkan fallback
+          lat: data.lat,
+          lng: data.lng,
+          accuracy: data.accuracy,
+          timestamp: (data.timestamp as Timestamp).toMillis(),
         });
       }
     });
+
     return points;
   } catch (error) {
     console.error("Error getting history for date:", error);

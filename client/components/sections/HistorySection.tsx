@@ -5,50 +5,57 @@ import { HistoryMap } from "../map/HistoryMap";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
-import { getHistoryForDate } from "@/lib/firebase";
-// Impor fungsi formatDuration
-import { totalDistance, PositionPoint, formatDuration } from "@/lib/location"; 
+import { getHistoryForDate } from "@/lib/firebase"; // <-- Menggunakan fungsi yang sudah diperbaiki
+import { totalDistance, PositionPoint, formatDuration } from "@/lib/location";
 import { Loader2 } from "lucide-react";
-// Impor komponen Tabel
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { KECAMATAN_LIST } from "@/lib/constants";
+import { Label } from "@/components/ui/label";
 
 export function HistorySection() {
+  const { localUser, isAdmin } = useAuth();
   const { users, loading: usersLoading } = useUsers();
+  
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [history, setHistory] = useState<PositionPoint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [kecFilter, setKecFilter] = useState<string | null>(null);
 
-  const kecamatanOptions = [ "Bungursari", "Cibeureum", "Purbaratu", "Indihiang", "Kawalu", "Mangkubumi", "Tamansari", "Cihideung", "Tawang", "Cipedes" ];
+  const [searchQuery, setSearchQuery] = useState("");
+  const [kecamatanFilter, setKecamatanFilter] = useState("");
 
   const filteredUsers = useMemo(() => {
-    return users.filter(u => kecFilter ? u.kecamatan === kecFilter : true);
-  }, [users, kecFilter]);
+    if (!isAdmin) return [];
+    return users.filter(user => 
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      (kecamatanFilter ? user.kecamatan === kecamatanFilter : true)
+    );
+  }, [isAdmin, users, searchQuery, kecamatanFilter]);
+
+  const targetUserId = isAdmin ? selectedUser?.id : localUser?.id;
 
   useEffect(() => {
-    if (!selectedUser && users.length > 0) {
-      setSelectedUser(users[0]);
+    if (isAdmin && !selectedUser && filteredUsers.length > 0) {
+      setSelectedUser(filteredUsers[0]);
+    } else if (isAdmin && selectedUser && !filteredUsers.find(u => u.id === selectedUser.id)) {
+      setSelectedUser(filteredUsers[0] || null);
     }
-  }, [users, selectedUser]);
+  }, [isAdmin, filteredUsers, selectedUser]);
 
   useEffect(() => {
     async function fetchHistory() {
-      if (!selectedUser) return;
-
+      if (!targetUserId) {
+        setHistory([]);
+        return;
+      };
       setHistoryLoading(true);
       setHistory([]);
       try {
-        const data = await getHistoryForDate(selectedUser.id, selectedDate);
+        const data = await getHistoryForDate(targetUserId, selectedDate);
         setHistory(data);
       } catch (error) {
         console.error("Gagal mengambil riwayat:", error);
@@ -58,106 +65,79 @@ export function HistorySection() {
       }
     }
     fetchHistory();
-  }, [selectedUser, selectedDate]);
+  }, [targetUserId, selectedDate]);
 
   const total = useMemo(() => totalDistance(history), [history]);
+  const displayName = isAdmin ? selectedUser?.name : localUser?.name;
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      <Card className="lg:col-span-2">
-        {/* ... CardHeader dan Peta tidak berubah ... */}
-        <CardHeader>
-           <CardTitle>Peta Riwayat Perjalanan</CardTitle>
-           <CardDescription>
-             {selectedUser ? `Menampilkan riwayat untuk ${selectedUser.name} pada ${format(parseISO(selectedDate), "d MMMM yyyy", { locale: id })}.` : "Pilih pengguna untuk melihat riwayat."}
-           </CardDescription>
-         </CardHeader>
-         <CardContent>
-           <div className="h-[640px] rounded-lg overflow-hidden relative">
-             {historyLoading && (
-               <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
-                 <Loader2 className="h-8 w-8 animate-spin" />
-               </div>
-             )}
-             <HistoryMap points={history} selectedIndex={selectedIndex} />
-           </div>
-         </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter Riwayat</CardTitle>
-        </CardHeader>
+      <Card className="lg:col-span-1">
+        <CardHeader><CardTitle>Filter Riwayat</CardTitle></CardHeader>
         <CardContent className="grid gap-4">
-          {/* ... Filter Kecamatan dan Pengguna tidak berubah ... */}
-           <div>
-             <label className="text-sm font-medium">Kecamatan</label>
-             <select
-               className="mt-1 w-full rounded-md border bg-background px-3 py-2"
-               value={kecFilter ?? ""}
-               onChange={(e) => setKecFilter(e.target.value || null)}
-             >
-               <option value="">Tampilkan semua</option>
-               {kecamatanOptions.map((k) => (<option key={k} value={k}>{k}</option>))}
-             </select>
-           </div>
-           <div>
-             <label>Pengguna</label>
-             <select
-               className="mt-1 w-full rounded-md border bg-background px-3 py-2"
-               value={selectedUser?.id || ""}
-               onChange={e => setSelectedUser(users.find(u => u.id === e.target.value) || null)}
-               disabled={usersLoading}
-             >
-               <option value="" disabled>{usersLoading ? "Memuat..." : "Pilih Pengguna"}</option>
-               {filteredUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-             </select>
-           </div>
-          <div>
-            <label>Tanggal</label>
-            <Input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
-          </div>
-
-          {history.length > 0 && !historyLoading && (
-            <div className="mt-4">
-              <h3 className="font-semibold">Detail Perjalanan</h3>
-              <p className="text-sm text-muted-foreground">Total Jarak: {(total / 1000).toFixed(2)} km</p>
-              
-              {/* ==== AWAL PERUBAHAN ==== */}
-              <div className="max-h-[320px] overflow-y-auto mt-2 border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Waktu</TableHead>
-                      <TableHead>Koordinat</TableHead>
-                      <TableHead>Durasi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {history.map((p, i) => (
-                      <TableRow 
-                        key={i} 
-                        className={`cursor-pointer ${selectedIndex === i ? 'bg-muted' : ''}`} 
-                        onClick={() => setSelectedIndex(i)}
-                      >
-                        <TableCell className="text-sm font-medium">
-                          {format(new Date(p.timestamp), "HH:mm:ss")}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {p.lat.toFixed(5)}, {p.lng.toFixed(5)}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {/* Logika untuk menampilkan durasi */}
-                          {i > 0 ? formatDuration(history[i-1], p) : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+          {isAdmin && (
+            <>
+              <div>
+                <Label>Cari Nama Pengguna</Label>
+                <Input placeholder="Ketik nama..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="mt-1" />
               </div>
-              {/* ==== AKHIR PERUBAHAN ==== */}
-
-            </div>
+              <div>
+                <Label>Filter Kecamatan</Label>
+                <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10" value={kecamatanFilter} onChange={e => setKecamatanFilter(e.target.value)}>
+                  <option value="">Semua Wilayah</option>
+                  {KECAMATAN_LIST.map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label>Pilih Pengguna</Label>
+                <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10" value={selectedUser?.id || ""} onChange={e => setSelectedUser(users.find(u => u.id === e.target.value) || null)} disabled={usersLoading}>
+                  {usersLoading ? <option>Memuat...</option> : filteredUsers.length === 0 ? <option>Tidak ada pengguna</option> : filteredUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+            </>
           )}
+          <div>
+            <Label>Tanggal</Label>
+            <Input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="mt-1" />
+          </div>
+          <div className="mt-4 border-t pt-4">
+            <h3 className="font-semibold">Detail Perjalanan</h3>
+            <p className="text-sm text-muted-foreground">Total Jarak: {(total / 1000).toFixed(2)} km</p>
+            <ScrollArea className="h-[320px] mt-2 w-full rounded-md border">
+              <Table>
+                <TableHeader><TableRow><TableHead>Waktu</TableHead><TableHead>Koordinat</TableHead><TableHead>Durasi</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {historyLoading ? (
+                    <TableRow><TableCell colSpan={3} className="text-center"><Loader2 className="inline-block h-6 w-6 animate-spin" /></TableCell></TableRow>
+                  ) : history.length > 0 ? (
+                    history.map((p, i) => (
+                      <TableRow key={p.timestamp} onClick={() => setSelectedIndex(i)} className={`cursor-pointer ${selectedIndex === i ? 'bg-muted' : ''}`}>
+                        <TableCell>{format(new Date(p.timestamp), "HH:mm:ss")}</TableCell>
+                        <TableCell>{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</TableCell>
+                        <TableCell>{i > 0 ? formatDuration(history[i-1], p) : '-'}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Tidak ada data riwayat.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Peta Riwayat Perjalanan</CardTitle>
+          <CardDescription>
+            {displayName ? `Menampilkan riwayat untuk ${displayName} pada ${format(parseISO(selectedDate), "d MMMM yyyy", { locale: id })}` : "Pilih filter untuk melihat riwayat."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[640px] rounded-lg overflow-hidden relative">
+            <HistoryMap points={history} selectedIndex={selectedIndex} />
+          </div>
         </CardContent>
       </Card>
     </div>

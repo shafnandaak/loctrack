@@ -1,55 +1,47 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleAuthProvider, signInWithPopup, User as FirebaseAuthUser } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { onLogin, User } from '@/lib/auth';
-import { useAuth } from '@/hooks/useAuth';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider, db } from '@/lib/firebase';
+import { onLogin, User } from '@/lib/auth'; // onLogin akan menyimpan ke local storage
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapContainer, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPinned } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { LatLngExpression } from 'leaflet'; // <-- Tipe data untuk koordinat peta
-
-const provider = new GoogleAuthProvider();
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { LatLngExpression } from 'leaflet';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading && user) {
-      navigate('/', { replace: true });
-    }
-  }, [user, loading, navigate]);
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const firebaseUser: FirebaseAuthUser = result.user;
+      const result = await signInWithPopup(auth, googleProvider);
+      const firebaseUser = result.user;
 
       const userDocRef = doc(db, "users", firebaseUser.uid);
       const userDoc = await getDoc(userDocRef);
       
-      let userData: User;
+      let appUser: User;
 
       if (userDoc.exists()) {
-        // Jika user sudah ada di Firestore, gunakan datanya
-        userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
+        appUser = { id: firebaseUser.uid, ...userDoc.data() } as User;
       } else {
-        // Jika belum ada, buat objek user baru sesuai tipe kustom kita
-        userData = {
+        // Buat data user baru jika belum ada di Firestore
+        appUser = {
             id: firebaseUser.uid,
             name: firebaseUser.displayName || "Pengguna Baru",
-            email: firebaseUser.email || "",
-            photoURL: firebaseUser.photoURL || "",
-            color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+            email: firebaseUser.email,
+            photoURL: firebaseUser.photoURL,
+            kecamatan: null, // Default
+            color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
+            lat: null,
+            lng: null,
         };
+        // Simpan user baru ini ke Firestore
+        await setDoc(userDocRef, appUser);
       }
 
-      // Kirim objek `userData` yang sudah sesuai dengan tipe `User` kustom kita
-      await onLogin(userData);
+      onLogin(appUser); // Simpan sesi ke local storage
       navigate('/', { replace: true });
 
     } catch (error) {
@@ -58,11 +50,6 @@ export default function LoginPage() {
     }
   };
 
-  if (loading || user) {
-    return null; 
-  }
-
-  // Definisikan posisi dengan tipe LatLngExpression
   const tasikmalayaPosition: LatLngExpression = [-7.33, 108.22];
 
   return (
@@ -81,7 +68,7 @@ export default function LoginPage() {
         />
       </MapContainer>
       <div className="absolute inset-0 bg-black/30 flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm animate-fade-in">
+        <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
               <div className="flex justify-center items-center gap-2 mb-2">
                   <MapPinned className="h-7 w-7 text-primary" />
@@ -100,4 +87,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

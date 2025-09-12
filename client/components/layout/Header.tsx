@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { onLogout } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
+import { auth } from "@/lib/firebase"; // Impor auth
+import { signOut } from "firebase/auth"; // Impor signOut
 
 export function Header() {
   const { localUser } = useAuth();
@@ -20,10 +22,17 @@ export function Header() {
   }, []);
 
   const handleLogout = async () => {
-    await onLogout();
-    navigate(0);
+    try {
+      await signOut(auth); // Logout dari Firebase
+      onLogout(); // Hapus sesi dari local storage
+      // Arahkan ke halaman login, replace history agar tidak bisa kembali
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
   };
-
+  
+  // Header tidak perlu ditampilkan jika tidak ada user yang login
   if (!localUser) {
     return null;
   }
@@ -45,12 +54,10 @@ export function Header() {
             <Avatar className="h-8 w-8">
               <AvatarImage src={localUser.photoURL ?? ""} />
               <AvatarFallback>
-                {/* ==== PERBAIKAN DI SINI ==== */}
                 {localUser.name?.[0]?.toUpperCase() ?? "A"}
               </AvatarFallback>
             </Avatar>
             <span className="hidden md:inline text-sm font-medium">
-              {/* ==== DAN DI SINI ==== */}
               {localUser.name}
             </span>
           </div>

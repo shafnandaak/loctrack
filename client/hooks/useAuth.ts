@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseAuthUser } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { getMe, onLogin as saveUserSession, onLogout as clearUserSession, User } from '@/lib/auth';
+import { getMe, setMe, onLogout as clearUserSession, User } from '@/lib/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
-// Ganti ini dengan UID admin Anda dari Firebase Authentication
-// Anda bisa dapatkan dari https://console.firebase.google.com/project/_/authentication/users
-const ADMIN_UID = "MASUKKAN_UID_ADMIN_ANDA_DI_SINI"; 
+// =======================================================================
+// PENTING: Ganti nilai di bawah ini dengan UID admin Anda dari Firebase.
+// Buka Firebase Console > Authentication > Users > Salin User UID admin.
+// =======================================================================
+const ADMIN_UID = "0KEk8d4731eWADpxdpsT7exWO1A3"; 
 
 export function useAuth() {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseAuthUser | null>(null);
@@ -14,41 +16,51 @@ export function useAuth() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Fungsi untuk me-refresh data dari local storage
   const refreshLocalUser = useCallback(() => {
-    setLocalUser(getMe());
+    const userFromStorage = getMe();
+    setLocalUser(userFromStorage);
+    if (userFromStorage) {
+      // Cek apakah ID user yang login adalah ID admin
+      setIsAdmin(userFromStorage.id === ADMIN_UID);
+    } else {
+      setIsAdmin(false);
+    }
   }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
       if (user) {
-        setFirebaseUser(user);
+        // Cek admin berdasarkan UID dari Firebase
         setIsAdmin(user.uid === ADMIN_UID);
         
-        // Ambil data lengkap dari Firestore setelah login
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
+
         if (userDoc.exists()) {
           const userData = { id: user.uid, ...userDoc.data() } as User;
-          saveUserSession(userData); // Simpan ke local storage
+          setMe(userData); // Simpan ke local storage
+          setLocalUser(userData);
+        } else {
+          clearUserSession();
+          setLocalUser(null);
         }
       } else {
-        setFirebaseUser(null);
         setIsAdmin(false);
-        clearUserSession(); // Hapus dari local storage
+        clearUserSession();
+        setLocalUser(null);
       }
-      refreshLocalUser(); // Selalu refresh data lokal setelah status auth berubah
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [refreshLocalUser]);
+  }, []);
 
   return { 
-    user: firebaseUser, // Pengguna dari Firebase
-    localUser,           // Profil pengguna dari local storage/Firestore
+    user: firebaseUser,
+    localUser,
     isAdmin, 
     loading, 
-    refreshLocalUser     // Fungsi untuk refresh manual
+    refreshLocalUser
   };
 }

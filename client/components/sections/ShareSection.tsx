@@ -1,145 +1,188 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, setMe, sendPointToFirebase, updateUserStartLocation } from "@/lib/auth";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/useAuth";
+import { updateUserKecamatan, User } from '@/lib/auth';
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { PositionPoint, distanceMeters } from "@/lib/location";
-import { useAuth } from "@/hooks/useAuth"; // <-- Impor hook
+import { Loader2 } from 'lucide-react';
+import { PositionPoint, totalDistance } from '@/lib/location';
+import { format } from 'date-fns';
+import { getHistoryForDate } from '@/lib/firebase';
+import { useUsers } from '@/hooks/useUsers';
+import { KECAMATAN_LIST } from '@/lib/constants';
+import { useLocationTracking } from '@/hooks/useLocationTracking'; // <-- Hook utama untuk kontrol lokasi
 
-export function ShareSection() {
-  // Ambil data user langsung dari hook
-  const { localUser: user, refreshLocalUser } = useAuth(); 
-  
-  const [isSharing, setSharing] = useState(false);
-  const [isGettingLocation, setGettingLocation] = useState(false);
-  const lastPointRef = useRef<PositionPoint | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-
-  const shouldSend = useCallback((p: PositionPoint) => {
-    const last = lastPointRef.current;
-    if (!last) return true;
-    return distanceMeters(last, p) >= 5; // Jarak minimal 5 meter
-  }, []);
-
-  const handlePositionUpdate = useCallback((position: GeolocationPosition) => {
-    if (!user) return;
-    const newPoint: PositionPoint = {
-      lat: position.coords.latitude,
-      lng: position.coords.longitude,
-      accuracy: position.coords.accuracy,
-      timestamp: position.timestamp,
-    };
-    if (shouldSend(newPoint)) {
-      lastPointRef.current = newPoint;
-      sendPointToFirebase(user.id, { lat: newPoint.lat, lng: newPoint.lng, accuracy: newPoint.accuracy });
-    }
-  }, [user, shouldSend]);
-
-  const startShare = () => {
-    if (!user) {
-      toast.error("Gagal memulai", { description: "Data pengguna tidak ditemukan." });
-      return;
-    }
-    setSharing(true);
-    lastPointRef.current = null;
-    
-    navigator.geolocation.getCurrentPosition(position => {
-        const initialPoint: PositionPoint = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: position.timestamp
-        };
-        lastPointRef.current = initialPoint;
-        sendPointToFirebase(user.id, { lat: initialPoint.lat, lng: initialPoint.lng, accuracy: initialPoint.accuracy });
-    });
-
-    watchIdRef.current = navigator.geolocation.watchPosition(handlePositionUpdate, 
-        (error) => console.error("Geolocation watch error:", error),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  };
-
-  const stopShare = () => {
-    setSharing(false);
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-  };
-
-  const getInitialLocation = async () => {
-    if (!user) return;
-    setGettingLocation(true);
-    try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            });
-        });
-        const { latitude: lat, longitude: lng } = position.coords;
-        await updateUserStartLocation(user.id, lat, lng);
-        
-        const me = { ...user, lat, lng };
-        setMe(me); // Simpan ke localStorage
-        refreshLocalUser(); // Refresh data di hook
-        
-        toast.success("Lokasi awal berhasil diatur!");
-    } catch (err: any) {
-      toast.error("Gagal mendapatkan lokasi", { description: err.message });
-    }
-    setGettingLocation(false);
-  };
+// =========================================================================
+// Komponen DailySummaryCard tidak perlu diubah, kodenya sudah benar.
+// Pastikan komponen ini ada di dalam file yang sama atau diimpor dengan benar.
+// =========================================================================
+function DailySummaryCard() {
+  const { localUser, isAdmin } = useAuth();
+  const { users, loading: usersLoading } = useUsers();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const [summaries, setSummaries] = useState<{ u: User; dist: number; list: PositionPoint[] }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    return () => stopShare();
-  }, []);
+    const usersToFetch = isAdmin ? users : (localUser ? [localUser] : []);
+    if (usersLoading && isAdmin) return;
 
-  // Guard clause: jika tidak ada user, jangan render apa-apa
-  if (!user) {
-    return null;
-  }
+    const fetchSummaries = async () => {
+      setIsLoading(true);
+      const summaryData = await Promise.all(
+        usersToFetch.map(async (u) => {
+          const list = await getHistoryForDate(u.id, today);
+          const dist = totalDistance(list);
+          return { u, list, dist };
+        })
+      );
+      setSummaries(summaryData);
+      setIsLoading(false);
+    };
+
+    if (usersToFetch.length > 0) {
+      fetchSummaries();
+    } else if (!usersLoading) {
+      setIsLoading(false);
+    }
+  }, [localUser, isAdmin, users, usersLoading, today]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Bagikan Lokasi</CardTitle>
-        <CardDescription>Mulai bagikan lokasi Anda agar dapat dipantau.</CardDescription>
+        <CardTitle>{isAdmin ? "Ringkasan Hari Ini" : "Ringkasan Anda Hari Ini"}</CardTitle>
+        <CardDescription>
+          {isAdmin ? "Jarak tempuh per pengguna." : "Total jarak tempuh Anda hari ini."}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-6">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="share-location" className="flex flex-col gap-1">
-            <span>Mulai Lacak</span>
-            <span className="font-normal text-muted-foreground">
-              {isSharing ? "Sedang membagikan lokasi..." : "Lokasi Anda tidak dibagikan."}
-            </span>
-          </Label>
-          {!isSharing ? (
-            <Button onClick={startShare} size="sm">Mulai Share</Button>
-          ) : (
-            <Button onClick={stopShare} size="sm" variant="outline">Stop Share</Button>
-          )}
-        </div>
-        {(!user.lat || !user.lng) && (
-          <div className="flex items-center justify-between">
-            <Label htmlFor="share-location" className="flex flex-col gap-1">
-              <span>Lokasi Awal</span>
-              <span className="font-normal leading-snug text-muted-foreground">
-                Ambil titik lokasi awal Anda (jika belum ada).
-              </span>
-            </Label>
-            <Button onClick={getInitialLocation} size="sm" variant="outline" disabled={isGettingLocation}>
-              {isGettingLocation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Ambil Titik
-            </Button>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-24">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : (
+          <ul className="space-y-3">
+            {summaries.length === 0 && <li className="text-sm text-muted-foreground">Belum ada data riwayat.</li>}
+            {summaries.map(({ u, dist, list }) => (
+              <li key={u.id} className="flex items-center justify-between rounded-md border p-3">
+                <div className="flex items-center gap-3">
+                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: u.color }} />
+                  <div>
+                    <div className="font-medium text-sm">{u.name}</div>
+                    <div className="text-xs text-muted-foreground">{list.length} titik</div>
+                  </div>
+                </div>
+                <div className="text-sm font-semibold">{(dist / 1000).toFixed(2)} km</div>
+              </li>
+            ))}
+          </ul>
         )}
       </CardContent>
     </Card>
   );
 }
 
+
+// =========================================================================
+//          PERBAIKAN UTAMA ADA DI KOMPONEN DI BAWAH INI
+// =========================================================================
+export function ShareSection() {
+  const { localUser, refreshLocalUser } = useAuth();
+  
+  // HANYA MENGAMBIL STATE DAN FUNGSI KONTROL DARI CONTEXT
+  // Semua logika watchPosition, handlePositionUpdate, dll. sudah dipindahkan
+  const { isSharing, startShare, stopShare } = useLocationTracking();
+  
+  const [kecamatan, setKecamatan] = useState(localUser?.kecamatan || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sinkronkan state kecamatan jika localUser berubah
+  useEffect(() => {
+    if (localUser) {
+      setKecamatan(localUser.kecamatan || '');
+    }
+  }, [localUser]);
+
+  const handleSaveKecamatan = async () => {
+    if (!localUser) return;
+    setIsSaving(true);
+    try {
+      await updateUserKecamatan(localUser.id, kecamatan);
+      refreshLocalUser();
+      toast.success("Wilayah cacah berhasil disimpan!");
+    } catch (error) {
+      toast.error("Gagal menyimpan data.");
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Hapus semua logika pelacakan:
+  // - const handlePositionUpdate = useCallback(...) -> DIHAPUS
+  // - const startShare = () => { ... } -> DIHAPUS (diganti dari context)
+  // - const stopShare = () => { ... } -> DIHAPUS (diganti dari context)
+  // - useEffect(() => { return () => stopShare(); }, []); -> DIHAPUS
+
+  if (!localUser) return null;
+
+  return (
+    <div className="grid gap-6 md:grid-cols-3">
+      <Card className="md:col-span-2">
+        <CardHeader>
+          <CardTitle>Profil dan Pengaturan Lokasi</CardTitle>
+          <CardDescription>Kelola informasi Anda dan mulai bagikan lokasi.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="email">Alamat Email</Label>
+              <Input id="email" value={localUser.email || ''} disabled />
+            </div>
+            <div>
+              <Label htmlFor="name">Nama</Label>
+              <Input id="name" value={localUser.name || ''} disabled />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="kecamatan">Kecamatan (Wilayah Cacah)</Label>
+            <div className="flex gap-2 mt-1">
+              <select
+                id="kecamatan"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
+                value={kecamatan}
+                onChange={(e) => setKecamatan(e.target.value)}
+              >
+                <option value="">Pilih Wilayah</option>
+                {KECAMATAN_LIST.map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+              <Button onClick={handleSaveKecamatan} disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Simpan
+              </Button>
+            </div>
+          </div>
+          <div className="border-t pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium">Bagikan Lokasi</h3>
+                <p className="text-sm text-muted-foreground">{isSharing ? "Status: Aktif" : "Status: Tidak Aktif"}</p>
+              </div>
+              {/* Tombol ini sekarang memanggil fungsi dari Context yang sudah terpusat */}
+              {!isSharing ? (
+                <Button onClick={startShare}>Mulai Share</Button>
+              ) : (
+                <Button onClick={stopShare} variant="destructive">Stop Share</Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <div className="md:col-span-1">
+        <DailySummaryCard />
+      </div>
+    </div>
+  );
+}

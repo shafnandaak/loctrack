@@ -1,8 +1,7 @@
 import { User as FirebaseAuthUser } from "firebase/auth";
 import { db } from "./firebase";
-import { doc, setDoc, addDoc, collection, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, setDoc, addDoc, collection, serverTimestamp, updateDoc, Timestamp } from "firebase/firestore";
 import { PositionPoint } from "./location";
-import { Timestamp } from "firebase/firestore";
 
 export type User = {
   id: string;
@@ -14,6 +13,8 @@ export type User = {
   lat?: number | null;
   lng?: number | null;
   lastSeen?: Timestamp | null;
+  // TAMBAHAN: untuk melacak waktu mulai sesi
+  sessionStartedAt?: Timestamp | null; 
 };
 
 const LS_ME = "loctrack:me";
@@ -35,20 +36,14 @@ export function setMe(user: User | null) {
   }
 }
 
-// Fungsi ini sekarang lebih fokus menangani data user setelah login
 export async function onLogin(user: User) {
   const userRef = doc(db, "users", user.id);
-  
-  // Simpan atau perbarui data user ke Firestore
-  // `merge: true` memastikan kita tidak menimpa data yang sudah ada
   await setDoc(userRef, {
       name: user.name,
       email: user.email,
       photoURL: user.photoURL,
       color: user.color,
   }, { merge: true });
-
-  // Simpan data user ke local storage untuk akses cepat
   setMe(user);
 }
 
@@ -56,28 +51,46 @@ export function onLogout() {
   setMe(null);
 }
 
-// Fungsi untuk mengirim titik lokasi ke sub-koleksi 'points'
+// ======================================================================
+//                            PERBAIKAN UTAMA
+// ======================================================================
+// Fungsi ini sekarang melakukan 2 hal:
+// 1. Memperbarui lokasi terakhir (lat, lng, lastSeen) di dokumen utama user.
+// 2. Menambahkan titik ke sub-koleksi riwayat (points).
 export async function sendPointToFirebase(userId: string, point: Omit<PositionPoint, 'timestamp'>) {
     if (!userId) return;
     try {
+        const userDocRef = doc(db, "users", userId);
+        const userPointsCollection = collection(db, `users/${userId}/points`);
+        
+        // 1. Update dokumen utama untuk peta live
+        await updateDoc(userDocRef, {
+            lat: point.lat,
+            lng: point.lng,
+            lastSeen: serverTimestamp() // Update waktu terakhir terlihat
+        });
+
+        // 2. Tambah ke sub-koleksi untuk riwayat
         const pointWithTimestamp = {
             ...point,
-            timestamp: serverTimestamp() // Gunakan timestamp server
+            timestamp: serverTimestamp()
         };
-        const userPointsCollection = collection(db, `users/${userId}/points`);
         await addDoc(userPointsCollection, pointWithTimestamp);
     } catch (error) {
         console.error("Error sending point to Firebase:", error);
     }
 }
 
-// Fungsi untuk memperbarui lokasi awal di dokumen user utama
-export async function updateUserStartLocation(userId: string, lat: number, lng: number) {
+// FUNGSI BARU: untuk mengelola status sesi (mulai/berhenti)
+export async function updateUserSessionStatus(userId: string, status: { sessionStartedAt: any }) {
     if (!userId) return;
-    try {
-        const userDocRef = doc(db, "users", userId);
-        await updateDoc(userDocRef, { lat, lng });
-    } catch (error) {
-        console.error("Error updating user start location:", error);
-    }
+    const userDocRef = doc(db, "users", userId);
+    await updateDoc(userDocRef, status);
+}
+// ======================================================================
+
+export async function updateUserKecamatan(userId: string, kecamatan: string) {
+  if (!userId) return;
+  const userDocRef = doc(db, "users", userId);
+  await updateDoc(userDocRef, { kecamatan });
 }
