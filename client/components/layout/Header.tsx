@@ -6,8 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { onLogout } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { auth } from "@/lib/firebase"; // Impor auth
-import { signOut } from "firebase/auth"; // Impor signOut
+import { auth } from "@/lib/firebase"; 
+import { signOut } from "firebase/auth"; 
 
 export function Header() {
   const { localUser } = useAuth();
@@ -23,16 +23,15 @@ export function Header() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth); // Logout dari Firebase
-      onLogout(); // Hapus sesi dari local storage
-      // Arahkan ke halaman login, replace history agar tidak bisa kembali
+      await signOut(auth); 
+      onLogout(); 
+      
       navigate('/login', { replace: true });
     } catch (error) {
       console.error("Logout Error:", error);
     }
   };
   
-  // Header tidak perlu ditampilkan jika tidak ada user yang login
   if (!localUser) {
     return null;
   }

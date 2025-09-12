@@ -12,12 +12,8 @@ import { format } from 'date-fns';
 import { getHistoryForDate } from '@/lib/firebase';
 import { useUsers } from '@/hooks/useUsers';
 import { KECAMATAN_LIST } from '@/lib/constants';
-import { useLocationTracking } from '@/hooks/useLocationTracking'; // <-- Hook utama untuk kontrol lokasi
+import { useLocationTracking } from '@/hooks/useLocationTracking'; 
 
-// =========================================================================
-// Komponen DailySummaryCard tidak perlu diubah, kodenya sudah benar.
-// Pastikan komponen ini ada di dalam file yang sama atau diimpor dengan benar.
-// =========================================================================
 function DailySummaryCard() {
   const { localUser, isAdmin } = useAuth();
   const { users, loading: usersLoading } = useUsers();
@@ -84,21 +80,14 @@ function DailySummaryCard() {
   );
 }
 
-
-// =========================================================================
-//          PERBAIKAN UTAMA ADA DI KOMPONEN DI BAWAH INI
-// =========================================================================
 export function ShareSection() {
   const { localUser, refreshLocalUser } = useAuth();
   
-  // HANYA MENGAMBIL STATE DAN FUNGSI KONTROL DARI CONTEXT
-  // Semua logika watchPosition, handlePositionUpdate, dll. sudah dipindahkan
   const { isSharing, startShare, stopShare } = useLocationTracking();
   
   const [kecamatan, setKecamatan] = useState(localUser?.kecamatan || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Sinkronkan state kecamatan jika localUser berubah
   useEffect(() => {
     if (localUser) {
       setKecamatan(localUser.kecamatan || '');
@@ -169,7 +158,6 @@ export function ShareSection() {
                 <h3 className="font-medium">Bagikan Lokasi</h3>
                 <p className="text-sm text-muted-foreground">{isSharing ? "Status: Aktif" : "Status: Tidak Aktif"}</p>
               </div>
-              {/* Tombol ini sekarang memanggil fungsi dari Context yang sudah terpusat */}
               {!isSharing ? (
                 <Button onClick={startShare}>Mulai Share</Button>
               ) : (

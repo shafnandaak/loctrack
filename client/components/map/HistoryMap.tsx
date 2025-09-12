@@ -5,7 +5,6 @@ import { PositionPoint } from "@/lib/location";
 import { useEffect } from "react";
 
 
-// Ikon untuk titik awal, akhir, dan di antaranya
 const startIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', shadowSize: [41, 41] });
 const endIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', shadowSize: [41, 41] });
 const defaultIcon = new L.Icon({ iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png', shadowSize: [41, 41] });
@@ -20,7 +19,6 @@ function MapEffects({ points }: { points: PositionPoint[] }) {
   return null;
 }
 
-// Komponen ini akan fokus pada titik yang dipilih
 function SelectedPointEffect({ point, zoom = 16 }: { point: PositionPoint | null, zoom?: number }) {
   const map = useMap();
   useEffect(() => {

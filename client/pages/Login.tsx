@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider, db } from '@/lib/firebase';
-import { onLogin, User } from '@/lib/auth'; // onLogin akan menyimpan ke local storage
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { onLogin, User } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapContainer, TileLayer } from "react-leaflet";
@@ -15,7 +15,11 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      // Buat provider baru dan set prompt agar selalu muncul "choose account"
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+
+      const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
 
       const userDocRef = doc(db, "users", firebaseUser.uid);
@@ -26,22 +30,20 @@ export default function LoginPage() {
       if (userDoc.exists()) {
         appUser = { id: firebaseUser.uid, ...userDoc.data() } as User;
       } else {
-        // Buat data user baru jika belum ada di Firestore
         appUser = {
             id: firebaseUser.uid,
             name: firebaseUser.displayName || "Pengguna Baru",
             email: firebaseUser.email,
             photoURL: firebaseUser.photoURL,
-            kecamatan: null, // Default
+            kecamatan: null,
             color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
             lat: null,
             lng: null,
         };
-        // Simpan user baru ini ke Firestore
         await setDoc(userDocRef, appUser);
       }
 
-      onLogin(appUser); // Simpan sesi ke local storage
+      onLogin(appUser); 
       navigate('/', { replace: true });
 
     } catch (error) {

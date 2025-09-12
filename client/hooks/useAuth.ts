@@ -6,55 +6,57 @@ import { doc, getDoc } from 'firebase/firestore';
 
 // =======================================================================
 // PENTING: Ganti nilai di bawah ini dengan UID admin Anda dari Firebase.
-// Buka Firebase Console > Authentication > Users > Salin User UID admin.
 // =======================================================================
 const ADMIN_UID = "0KEk8d4731eWADpxdpsT7exWO1A3"; 
 
 export function useAuth() {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseAuthUser | null>(null);
-  const [localUser, setLocalUser] = useState<User | null>(() => getMe());
+  const [localUser, setLocalUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const refreshLocalUser = useCallback(() => {
-    const userFromStorage = getMe();
-    setLocalUser(userFromStorage);
-    if (userFromStorage) {
-      // Cek apakah ID user yang login adalah ID admin
-      setIsAdmin(userFromStorage.id === ADMIN_UID);
+  // Ambil user dari Firestore, update localStorage dan state
+  const fetchAndSetUser = useCallback(async (user: FirebaseAuthUser) => {
+    const userDocRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+      const userData = { id: user.uid, ...userDoc.data() } as User;
+      setMe(userData);
+      setLocalUser(userData);
+      setIsAdmin(user.uid === ADMIN_UID);
     } else {
+      clearUserSession();
+      setLocalUser(null);
       setIsAdmin(false);
     }
   }, []);
+
+  // Untuk manual refresh dari komponen
+  const refreshLocalUser = useCallback(async () => {
+    const current = auth.currentUser;
+    if (current) {
+      await fetchAndSetUser(current);
+    } else {
+      clearUserSession();
+      setLocalUser(null);
+      setIsAdmin(false);
+    }
+  }, [fetchAndSetUser]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
-        // Cek admin berdasarkan UID dari Firebase
-        setIsAdmin(user.uid === ADMIN_UID);
-        
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-          const userData = { id: user.uid, ...userDoc.data() } as User;
-          setMe(userData); // Simpan ke local storage
-          setLocalUser(userData);
-        } else {
-          clearUserSession();
-          setLocalUser(null);
-        }
+        await fetchAndSetUser(user);
       } else {
-        setIsAdmin(false);
         clearUserSession();
         setLocalUser(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
-  }, []);
+  }, [fetchAndSetUser]);
 
   return { 
     user: firebaseUser,

@@ -7,7 +7,7 @@ import { id } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
-import { getHistoryForDate } from "@/lib/firebase"; // <-- Menggunakan fungsi yang sudah diperbaiki
+import { getHistoryForDate } from "@/lib/firebase"; 
 import { totalDistance, PositionPoint, formatDuration } from "@/lib/location";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";

@@ -36,7 +36,6 @@ export function AdminSection() {
       const usersQuery = await getDocs(collection(db, "users"));
       
       usersQuery.forEach(doc => {
-        // Jangan hapus akun admin yang sedang login
         if (doc.id !== localUser?.id) {
           batch.delete(doc.ref);
         }
