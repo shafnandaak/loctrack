@@ -1,8 +1,10 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, collection, query, where, getDocs, Timestamp, orderBy } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, Timestamp, orderBy, enableIndexedDbPersistence } from "firebase/firestore";
 import { GoogleAuthProvider } from "firebase/auth";
 import { PositionPoint } from "./location";
+import { addDoc, serverTimestamp } from "firebase/firestore";
+
 
 // Konfigurasi Firebase Anda
 const firebaseConfig = {
@@ -19,13 +21,50 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// Mengaktifkan offline persistence untuk Firestore
+enableIndexedDbPersistence(db).catch((err) => {
+  // IndexedDB mungkin tidak tersedia di mode private/incognito atau tab ganda
+  if (err.code === 'failed-precondition') {
+    console.warn('Persistence gagal karena ada beberapa tab terbuka.');
+  } else if (err.code === 'unimplemented') {
+    console.warn('Persistence tidak didukung di browser ini.');
+  } else {
+    console.error('Gagal mengaktifkan offline persistence:', err);
+  }
+});
 
-// ======================================================================
-//                            PERBAIKAN UTAMA
-// ======================================================================
-// Fungsi ini diperbaiki untuk mengambil data dari sub-koleksi 'points'
-// berdasarkan rentang waktu dari awal hingga akhir hari yang dipilih,
-// dengan penanganan zona waktu yang lebih baik.
+// Fungsi untuk mencatat aktivitas user
+
+export async function logUserActivity(userId: string, type: string, detail?: string) {
+  try {
+    await addDoc(collection(db, `users/${userId}/activityLogs`), {
+      type,
+      timestamp: serverTimestamp(),
+      detail: detail || ""
+    });
+  } catch (err) {
+    console.error("Gagal menyimpan log aktivitas:", err);
+  }
+}
+
+export async function getUserLoginCount(userId: string): Promise<number> {
+  const q = query(
+    collection(db, `users/${userId}/activityLogs`),
+    where("type", "==", "login")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.size;
+}
+
+// Fungsi ambil statistik login semua user
+export async function getAllUserLoginStats(userIds: string[]): Promise<Record<string, number>> {
+  const stats: Record<string, number> = {};
+  for (const id of userIds) {
+    stats[id] = await getUserLoginCount(id);
+  }
+  return stats;
+}
+
 export async function getHistoryForDate(userId: string, date: string): Promise<PositionPoint[]> {
   if (!userId) return [];
 

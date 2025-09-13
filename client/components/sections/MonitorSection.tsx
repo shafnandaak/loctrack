@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { KECAMATAN_LIST } from "@/lib/constants";
 import { Label } from "../ui/label";
+import { useEffect } from "react";
+import { getAllUserLoginStats } from "@/lib/firebase";
 
 export function MonitorSection({ isAdmin }: { isAdmin?: boolean }) {
   const { users, loading } = useUsers();
@@ -54,6 +56,20 @@ export function MonitorSection({ isAdmin }: { isAdmin?: boolean }) {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     saveAs(blob, `riwayat-${user.name}-${todayKey}.csv`);
   }
+
+  // State untuk statistik login
+    const [loginStats, setLoginStats] = useState<Record<string, number>>({});
+
+      useEffect(() => {
+        async function fetchStats() {
+          if (users.length > 0) {
+            const stats = await getAllUserLoginStats(users.map(u => u.id));
+            setLoginStats(stats);
+          }
+        }
+        fetchStats();
+      }, [users]);
+
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -130,6 +146,36 @@ export function MonitorSection({ isAdmin }: { isAdmin?: boolean }) {
               </div>
             </ScrollArea>
           )}
+        </CardContent>
+      </Card>
+      <Card className="lg:col-span-3 mt-6">
+        <CardHeader>
+          <CardTitle>Statistik Aktivitas Login Pengguna</CardTitle>
+          <CardDescription>Jumlah login per pengguna (urut terbanyak)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="text-left py-2 px-3">Nama</th>
+                  <th className="text-left py-2 px-3">Email</th>
+                  <th className="text-left py-2 px-3">Login Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...users]
+                  .sort((a, b) => (loginStats[b.id] || 0) - (loginStats[a.id] || 0))
+                  .map(user => (
+                  <tr key={user.id}>
+                    <td className="py-1 px-3">{user.name}</td>
+                    <td className="py-1 px-3">{user.email}</td>
+                    <td className="py-1 px-3">{loginStats[user.id] || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

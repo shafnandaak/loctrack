@@ -9,6 +9,7 @@ import "leaflet/dist/leaflet.css";
 import { MapPinned } from 'lucide-react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { LatLngExpression } from 'leaflet';
+import { logUserActivity } from '@/lib/firebase';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -28,20 +29,21 @@ export default function LoginPage() {
       let appUser: User;
 
       if (userDoc.exists()) {
-        appUser = { id: firebaseUser.uid, ...userDoc.data() } as User;
-      } else {
-        appUser = {
-            id: firebaseUser.uid,
-            name: firebaseUser.displayName || "Pengguna Baru",
-            email: firebaseUser.email,
-            photoURL: firebaseUser.photoURL,
-            kecamatan: null,
-            color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
-            lat: null,
-            lng: null,
-        };
-        await setDoc(userDocRef, appUser);
-      }
+      appUser = { id: firebaseUser.uid, ...userDoc.data() } as User;
+    } else {
+      appUser = {
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || "Pengguna Baru",
+          email: firebaseUser.email,
+          photoURL: firebaseUser.photoURL,
+          kecamatan: null,
+          color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
+          lat: null,
+          lng: null,
+      };
+      await setDoc(userDocRef, appUser);
+    }
+      await logUserActivity(appUser.id, "login", "User logged in");
 
       onLogin(appUser); 
       navigate('/', { replace: true });
